@@ -1,0 +1,58 @@
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+html {
+  /* 预留滚动条空间，防止内容瞬移 */
+  overflow-y: scroll;
+  /* 确保滚动条始终可见，即使内容不需要滚动 */
+  scrollbar-gutter: stable;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+  /* 防止水平滚动条 */
+  overflow-x: hidden;
+  /* 添加平滑滚动 */
+  scroll-behavior: smooth;
+}
+
+/* 同步界面样式 */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 改善字体渲染 */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}

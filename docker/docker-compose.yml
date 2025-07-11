@@ -1,0 +1,17 @@
+services:
+  emby-comments:
+    image: ghcr.io/sqzw-x/emby-comments:latest
+    container_name: emby-comments
+    restart: unless-stopped
+    environment:
+      - HOSTNAME=0.0.0.0
+      - PORT=3000
+      # 数据库配置
+      - DATABASE_URL=file:/app/data/data.db
+
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+    volumes:
+      # SQLite 数据库文件持久化
+      - ./data:/app/data
+    network_mode: "host"

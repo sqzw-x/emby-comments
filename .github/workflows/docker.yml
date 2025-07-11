@@ -12,9 +12,17 @@ env:
 
 jobs:
   build:
-    runs-on: 
-      - ubuntu-latest
-      - macos-latest
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            platform: linux/amd64
+            arch: amd64
+          - runner: macos-latest
+            platform: linux/arm64
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+
     permissions:
       contents: read
       packages: write

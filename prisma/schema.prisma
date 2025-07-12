@@ -49,6 +49,7 @@ model EmbyItem {
   localItemId     Int? // 关联的本地项目ID
   embyId          String // Emby内部ID
   embyServerId    Int // 关联的Emby服务器ID
+  embyCreateAt    DateTime? // 在 Emby 上的创建时间
   title           String // 标题
   originalTitle   String? // 原始标题
   overview        String? // 简介
@@ -56,7 +57,6 @@ model EmbyItem {
   externalIds     Json? // 外部ID（如IMDB ID） key-value 格式
   directors       String? // 导演 （逗号分隔）
   actors          String? // 演员（逗号分隔）
-  // 以下字段非必要, 可以直接从 Emby 获取, 可作为 fallback 备用
   posterPath      String? // 海报路径
   backdropPath    String? // 背景图路径
   genres          String? // 类型（逗号分隔）
@@ -115,6 +115,17 @@ model Rating {
 
   @@unique([localItemId])
   @@index([localItemId])
+}
+
+// 系统配置
+model Config {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique // 配置键，如 "app.theme"
+  value     String // 配置值（JSON字符串）
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
 }
 
 // 外部链接定义

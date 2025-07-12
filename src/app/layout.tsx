@@ -2,12 +2,15 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ServerProvider } from "@/lib/context/server-context";
+import { ConfigProvider } from "@/lib/context/config-context";
 import { ThemeContextProvider } from "@/lib/context/theme-context";
 import { getActiveServer } from "@/lib/actions/server";
 import MuiThemeProvider from "@/components/providers/mui-theme-provider";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v14-appRouter";
 import { ToastProvider } from "@/lib/context/toast-context";
 import { ConfirmProvider } from "@/lib/context/confirm-context";
+import { getConfig } from "@/lib/actions/config";
+import { DEFAULT_CONFIG } from "@/lib/service/config";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -36,8 +39,8 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   // 在服务端获取激活的服务器
-  const result = await getActiveServer();
-  if (!result.success) {
+  const server = await getActiveServer();
+  if (!server.success) {
     // 如果没有激活的服务器，重定向到设置页面
     return (
       <html lang="zh-CN">
@@ -51,6 +54,15 @@ export default async function RootLayout({
     );
   }
 
+  const r = await getConfig();
+  let config;
+  if (!r.success) {
+    console.error("获取配置失败:", r.message);
+    config = DEFAULT_CONFIG;
+  } else {
+    config = r.value;
+  }
+
   return (
     <html lang="zh-CN">
       <head>
@@ -62,7 +74,9 @@ export default async function RootLayout({
             <MuiThemeProvider>
               <ToastProvider>
                 <ConfirmProvider>
-                  <ServerProvider initialActiveServer={result.value}>{children}</ServerProvider>
+                  <ServerProvider initialActiveServer={server.value}>
+                    <ConfigProvider initial={config}>{children}</ConfigProvider>
+                  </ServerProvider>
                 </ConfirmProvider>
               </ToastProvider>
             </MuiThemeProvider>

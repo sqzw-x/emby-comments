@@ -66,7 +66,11 @@ export default function TagsClient({ allTags }: TagsClientProps) {
   const toggleGroupExpanded = useCallback((groupName: string) => {
     setExpandedGroups((prev) => {
       const newSet = new Set(prev);
-      newSet.has(groupName) ? newSet.delete(groupName) : newSet.add(groupName);
+      if (newSet.has(groupName)) {
+        newSet.delete(groupName);
+      } else {
+        newSet.add(groupName);
+      }
       return newSet;
     });
   }, []);

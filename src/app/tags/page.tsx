@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import TagsClient from "./tags-client";
+import TagsClient from "./client";
 import { getActiveServer } from "@/lib/actions/server";
 import { getTagsByServerId } from "@/lib/actions/tag";
 import Routes from "@/lib/routes";

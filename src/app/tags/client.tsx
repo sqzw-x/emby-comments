@@ -2,8 +2,8 @@
 
 import React, { useState, useMemo, useCallback } from "react";
 import { PageLayout, SearchHeader, ContentArea } from "@/components/common";
-import { Tag as TagIcon } from "lucide-react";
-import { Box, Stack, Typography, Paper, TextField, Collapse } from "@mui/material";
+import { Tag as TagIcon, ChevronDown, ChevronRight } from "lucide-react";
+import { Box, Stack, Typography, Paper, TextField, Collapse, IconButton } from "@mui/material";
 import { TagWithCount } from "@/lib/service/tag";
 import TagItem from "./components/tag-item";
 import { useDebounce } from "@/lib/hooks/useDebounce";
@@ -17,6 +17,7 @@ export default function TagsClient({ allTags }: TagsClientProps) {
   const [minCount, setMinCount] = useState<number | "">(2);
   const [maxCount, setMaxCount] = useState<number | "">("");
   const [showFilters, setShowFilters] = useState(true);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   // 使用防抖处理搜索和数量筛选
   const searchTerm_ = useDebounce(searchTerm, 1000);
@@ -50,6 +51,25 @@ export default function TagsClient({ allTags }: TagsClientProps) {
     });
     return groups;
   }, [filteredTags]);
+
+  // 初始化展开状态：默认折叠包含100个以上标签的分组
+  useMemo(() => {
+    const newExpandedGroups = new Set<string>();
+    Object.entries(groupedTags).forEach(([groupName, tags]) => {
+      if (tags.length < 100) {
+        newExpandedGroups.add(groupName);
+      }
+    });
+    setExpandedGroups(newExpandedGroups);
+  }, [groupedTags]);
+
+  const toggleGroupExpanded = useCallback((groupName: string) => {
+    setExpandedGroups((prev) => {
+      const newSet = new Set(prev);
+      newSet.has(groupName) ? newSet.delete(groupName) : newSet.add(groupName);
+      return newSet;
+    });
+  }, []);
 
   const stats = useMemo(() => {
     const totalTags = allTags.length;
@@ -136,45 +156,64 @@ export default function TagsClient({ allTags }: TagsClientProps) {
         <Stack spacing={4}>
           {Object.keys(groupedTags)
             .sort()
-            .map((groupName) => (
-              <Box key={groupName}>
-                {/* 分组标题 */}
-                <Typography
-                  variant="h6"
-                  sx={{
-                    mb: 2,
-                    pb: 1,
-                    borderBottom: 1,
-                    borderColor: "divider",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                  }}
-                >
-                  <TagIcon size={20} />
-                  {`${groupName}(${groupedTags[groupName].length})`}
-                </Typography>
+            .map((groupName) => {
+              const isExpanded = expandedGroups.has(groupName);
+              const groupTags = groupedTags[groupName];
 
-                {/* 该分组下的标签 */}
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: {
-                      xs: "1fr",
-                      sm: "repeat(2, 1fr)",
-                      md: "repeat(3, 1fr)",
-                      lg: "repeat(4, 1fr)",
-                      xl: "repeat(5, 1fr)",
-                    },
-                    gap: 2,
-                  }}
-                >
-                  {groupedTags[groupName].map((tag) => (
-                    <TagItem key={tag.id} tag={tag} />
-                  ))}
+              return (
+                <Box key={groupName}>
+                  {/* 分组标题 */}
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      mb: 2,
+                      pb: 1,
+                      borderBottom: 1,
+                      borderColor: "divider",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      cursor: "pointer",
+                      "&:hover": {
+                        bgcolor: "action.hover",
+                      },
+                      borderRadius: 1,
+                      px: 1,
+                      py: 0.5,
+                    }}
+                    onClick={() => toggleGroupExpanded(groupName)}
+                  >
+                    <IconButton size="small" sx={{ mr: 0.5 }}>
+                      {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                    </IconButton>
+                    <TagIcon size={20} />
+                    {`${groupName}(${groupTags.length})`}
+                  </Typography>
+
+                  {/* 该分组下的标签 */}
+                  <Collapse in={isExpanded}>
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: {
+                          xs: "1fr",
+                          sm: "repeat(2, 1fr)",
+                          md: "repeat(3, 1fr)",
+                          lg: "repeat(4, 1fr)",
+                          xl: "repeat(5, 1fr)",
+                        },
+                        gap: 2,
+                        mb: 2,
+                      }}
+                    >
+                      {groupTags.map((tag) => (
+                        <TagItem key={tag.id} tag={tag} />
+                      ))}
+                    </Box>
+                  </Collapse>
                 </Box>
-              </Box>
-            ))}
+              );
+            })}
         </Stack>
       </ContentArea>
     </PageLayout>

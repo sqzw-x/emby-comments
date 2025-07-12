@@ -34,10 +34,29 @@ export default function Items({
   const [searchOption, setSearchOption] = useState(searchOptions);
   const [showFilters, setShowFilters] = useState(false);
 
+  // embyCreatedAt 排序由前端进行
+  const sortedItems = useMemo(() => {
+    if (searchOptions.sortBy === "embyCreatedAt") {
+      const sorted = [...items].sort((a, b) => {
+        const aDate = a.embyItem?.embyCreateAt;
+        const bDate = b.embyItem?.embyCreateAt;
+        // null 值排在最后
+        if (!aDate && !bDate) return 0;
+        if (!aDate) return 1;
+        if (!bDate) return -1;
+        const aTime = new Date(aDate).getTime();
+        const bTime = new Date(bDate).getTime();
+        return searchOptions.sortOrder === "desc" ? bTime - aTime : aTime - bTime;
+      });
+      return sorted;
+    }
+    return items;
+  }, [items, searchOptions.sortBy, searchOptions.sortOrder]);
+
   // 分页数据
   const paginatedData = useMemo(() => {
-    return paginateArray(items, curPage, curPageSize);
-  }, [items, curPage, curPageSize]);
+    return paginateArray(sortedItems, curPage, curPageSize);
+  }, [sortedItems, curPage, curPageSize]);
 
   // 处理搜索逻辑
   const handleSearch = (e: React.FormEvent) => {
@@ -112,14 +131,14 @@ export default function Items({
           </Box>
 
           {/* 分页组件 */}
-          {items.length > curPageSize && (
+          {sortedItems.length > curPageSize && (
             <Pagination
               currentPage={paginatedData.pagination.currentPage}
               totalPages={paginatedData.pagination.totalPages}
               onPageChange={(i) => updateFilters({ page: i, pageSize: curPageSize })}
               showPageSizeSelector={true}
               pageSize={curPageSize}
-              totalItems={items.length}
+              totalItems={sortedItems.length}
               pageSizeOptions={[10, 20, 30, 50]}
               onPageSizeChange={(newSize) => updateFilters({ page: 1, pageSize: newSize })}
             />

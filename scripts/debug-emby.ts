@@ -23,7 +23,7 @@ async function custom2(client: EmbyClient) {
   const serverItems = await client.getItems({
     Recursive: true,
     IncludeItemTypes: "Movie,Series",
-    Fields: "Overview,Genres,Studios,ProviderIds,DateCreated,People,Path,PremiereDate",
+    Fields: "Overview,Genres,Studios,ProviderIds,DateCreated,People,Path,PremiereDate,ProductionYear",
     SortBy: "Name",
     SortOrder: "Ascending",
   });

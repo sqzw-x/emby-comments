@@ -8,6 +8,7 @@ applyTo: "**/*.ts"
 - 使用 pnpm 作为包管理器, prisma 作为 ORM
 
 - 若需要新增后端调用, 不要创建 API 端口, 而是使用 server actions
+- 前端不要对 server actions 调用进行异常处理, 只需检测返回值是否成功即可
 - 内部链接不要硬编码路径, 而是使用 src/lib/routes.ts
 - 使用 MUI 组件, 遵循 material 设计规范
 - 尽量避免使用 as 操作, 若一定需要请添加注释说明

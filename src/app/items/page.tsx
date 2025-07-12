@@ -33,7 +33,7 @@ export default async function Page({ searchParams }: ItemsProps) {
   // 并行获取电影数据和标签选项
   const [movies, tags] = await Promise.all([
     filterLocalItems(normalizedQuery, server.value.id),
-    getTagsByServerId(server.value.id),
+    getTagsByServerId(server.value.id, "name"),
   ]);
 
   if (!movies.success) {

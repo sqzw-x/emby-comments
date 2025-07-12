@@ -25,7 +25,7 @@ export type ItemMapOperation =
       embyItemId: number;
     };
 
-export type SortField = "title" | "premiereDate" | "rating";
+export type SortField = "title" | "premiereDate" | "rating" | "createdAt" | "updatedAt" | "embyCreatedAt";
 export type SortOrder = "asc" | "desc";
 export type ItemSearchOptions = {
   search?: string; // 搜索关键词
@@ -54,53 +54,30 @@ export class ItemService {
     const dateAdded = embyItem.DateCreated ? new Date(embyItem.DateCreated) : null;
     const premiereDate = embyItem.PremiereDate ? new Date(embyItem.PremiereDate) : null;
 
+    const data = {
+      title: embyItem.Name!,
+      originalTitle: embyItem.OriginalTitle || embyItem.Name,
+      overview: embyItem.Overview || null,
+      type: embyItem.Type!,
+      premiereDate,
+      externalIds: embyItem.ProviderIds,
+      posterPath: embyItem.ImageTags?.Primary || null,
+      backdropPath: embyItem.BackdropImageTags?.[0] || null,
+      genres,
+      studios,
+      actors,
+      directors,
+      productionYear: embyItem.ProductionYear || premiereDate?.getFullYear() || null,
+      dateAdded,
+      communityRating: embyItem.CommunityRating || null,
+      embyCreateAt: embyItem.DateCreated ? new Date(embyItem.DateCreated) : null, // Emby 上的创建时间
+    };
     // 更新或创建Emby项目
     const updatedEmbyItem = await dbClient.embyItem.upsert({
-      where: {
-        embyId_embyServerId: {
-          embyId: embyItem.Id!,
-          embyServerId: serverId,
-        },
-      },
-      update: {
-        title: embyItem.Name,
-        originalTitle: embyItem.OriginalTitle || embyItem.Name,
-        overview: embyItem.Overview || null,
-        type: embyItem.Type,
-        premiereDate,
-        externalIds: embyItem.ProviderIds,
-        posterPath: embyItem.ImageTags?.Primary || null,
-        backdropPath: embyItem.BackdropImageTags?.[0] || null,
-        genres,
-        studios,
-        actors,
-        directors,
-        productionYear: embyItem.ProductionYear || null,
-        dateAdded,
-        communityRating: embyItem.CommunityRating || null,
-      },
-      create: {
-        embyId: embyItem.Id!,
-        embyServerId: serverId,
-        title: embyItem.Name!,
-        originalTitle: embyItem.OriginalTitle || embyItem.Name,
-        overview: embyItem.Overview || null,
-        type: embyItem.Type!,
-        externalIds: embyItem.ProviderIds,
-        posterPath: embyItem.ImageTags?.Primary || null,
-        backdropPath: embyItem.BackdropImageTags?.[0] || null,
-        genres,
-        studios,
-        actors,
-        directors,
-        productionYear: embyItem.ProductionYear || null,
-        dateAdded,
-        premiereDate,
-        communityRating: embyItem.CommunityRating || null,
-      },
-      include: {
-        localItem: includeLocalItem, // 包含关联的本地项目
-      },
+      where: { embyId_embyServerId: { embyId: embyItem.Id!, embyServerId: serverId } },
+      update: data,
+      create: { embyId: embyItem.Id!, embyServerId: serverId, ...data },
+      include: { localItem: includeLocalItem },
     });
     return updatedEmbyItem;
   }
@@ -174,7 +151,7 @@ export class ItemService {
     const serverItems = await embyClient.getItems({
       Recursive: true,
       IncludeItemTypes: "Movie,Series",
-      Fields: "Overview,Genres,Studios,ProviderIds,DateCreated,People,Path,PremiereDate",
+      Fields: "Overview,Genres,Studios,ProviderIds,DateCreated,People,Path,PremiereDate,ProductionYear",
       SortBy: "Name",
       SortOrder: "Ascending",
     });
@@ -376,9 +353,10 @@ export class ItemService {
       whereConditions.AND = query.tagIds.map((tagId) => ({ tags: { some: { id: tagId } } }));
     }
 
-    const sortBy = query.sortBy ?? "title";
+    // embyCreatedAt 排序在前端进行
+    const sortBy = query.sortBy === "embyCreatedAt" ? "title" : query.sortBy ?? "title";
     const sortOrder = query.sortOrder ?? "asc";
-    let sortInput;
+    let sortInput: Prisma.LocalItemOrderByWithRelationInput;
     if (sortBy === "rating") {
       sortInput = { rating: { score: sortOrder } };
     } else {

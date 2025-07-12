@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import {
   Box,
   Paper,
@@ -13,16 +13,18 @@ import {
   Typography,
   Collapse,
   TextField,
+  IconButton,
 } from "@mui/material";
-import { X } from "lucide-react";
+import { ChevronDown, ChevronRight, TagIcon, X } from "lucide-react";
 import { ItemSearchOptions, SortField, SortOrder } from "@/lib/service/item";
+import { TagWithCount } from "@/lib/service/tag";
 
 type Query = Omit<ItemSearchOptions, "search">; // 搜索不由筛选组件处理
 export type ItemsFilterProps = {
   isOpen: boolean;
   onClose: () => void;
   // 可选项
-  tagOptions: Array<{ id: number; name: string }>;
+  tagOptions: Array<TagWithCount>;
   // 当前筛选值
   searchOption: Query;
   // 清除筛选
@@ -33,8 +35,11 @@ export type ItemsFilterProps = {
 
 const sortByOptions = [
   { value: "title", label: "标题" },
-  { value: "premiereDate", label: "年份" },
+  { value: "premiereDate", label: "发行时间" },
   { value: "rating", label: "评分" },
+  { value: "createdAt", label: "本地创建时间" },
+  { value: "updatedAt", label: "本地更新时间" },
+  { value: "embyCreatedAt", label: "Emby创建时间" },
 ] as const;
 
 const sortOrderOptions = [
@@ -53,6 +58,44 @@ export function ItemsFilter({
   // 本地状态管理年份输入
   const [localYearFrom, setLocalYearFrom] = useState(searchOption.yearFrom ?? null);
   const [localYearTo, setLocalYearTo] = useState(searchOption.yearTo ?? null);
+  // 标签分组展开状态管理
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  // 按组分组标签
+  const groupedTags = useMemo(() => {
+    const groups: { [key: string]: Array<{ id: number; name: string; group?: string | null }> } = {};
+    tagOptions.forEach((tag) => {
+      const group = tag.group || "未分类";
+      if (!groups[group]) {
+        groups[group] = [];
+      }
+      groups[group].push(tag);
+    });
+    return groups;
+  }, [tagOptions]);
+
+  // 初始化展开状态：默认折叠包含20个以上标签的分组
+  useMemo(() => {
+    const newExpandedGroups = new Set<string>();
+    Object.entries(groupedTags).forEach(([groupName, tags]) => {
+      if (tags.length < 20) {
+        newExpandedGroups.add(groupName);
+      }
+    });
+    setExpandedGroups(newExpandedGroups);
+  }, [groupedTags]);
+
+  const toggleGroupExpanded = useCallback((groupName: string) => {
+    setExpandedGroups((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(groupName)) {
+        newSet.delete(groupName);
+      } else {
+        newSet.add(groupName);
+      }
+      return newSet;
+    });
+  }, []);
 
   // 同步外部状态到本地状态
   React.useEffect(() => {
@@ -174,14 +217,14 @@ export function ItemsFilter({
               </FormControl>
             </Stack>
 
-            {/* 标签筛选 - 独立显示 */}
+            {/* 标签筛选 */}
             <Box>
               <Typography variant="subtitle2" sx={{ mb: 1.5 }}>
                 标签
               </Typography>
               <Box
                 sx={{
-                  maxHeight: 200,
+                  maxHeight: 300,
                   overflowY: "auto",
                   p: 1,
                   border: 1,
@@ -190,22 +233,62 @@ export function ItemsFilter({
                   backgroundColor: "background.default",
                 }}
               >
-                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-                  {tagOptions.map((tag) => {
-                    const isSelected = searchOption.tagIds?.includes(tag.id) || false;
-                    return (
-                      <Chip
-                        key={tag.id}
-                        label={tag.name}
-                        variant={isSelected ? "filled" : "outlined"}
-                        color={isSelected ? "primary" : "default"}
-                        clickable
-                        onClick={() => handleTagToggle(tag.id)}
-                        size="small"
-                      />
-                    );
-                  })}
-                </Box>
+                <Stack spacing={2}>
+                  {Object.keys(groupedTags)
+                    .sort()
+                    .map((groupName) => {
+                      const isExpanded = expandedGroups.has(groupName);
+                      const groupTags = groupedTags[groupName];
+
+                      return (
+                        <Box key={groupName}>
+                          {/* 分组标题 */}
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              mb: 1,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 0.5,
+                              cursor: "pointer",
+                              fontWeight: 500,
+                              "&:hover": { bgcolor: "action.hover" },
+                              borderRadius: 1,
+                              px: 1,
+                              py: 0.5,
+                            }}
+                            onClick={() => toggleGroupExpanded(groupName)}
+                          >
+                            <IconButton size="small" sx={{ p: 0 }}>
+                              {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                            </IconButton>
+                            <TagIcon size={16} />
+                            {`${groupName} (${groupTags.length})`}
+                          </Typography>
+
+                          {/* 该分组下的标签 */}
+                          <Collapse in={isExpanded}>
+                            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, ml: 3 }}>
+                              {groupTags.map((tag) => {
+                                const isSelected = searchOption.tagIds?.includes(tag.id) || false;
+                                return (
+                                  <Chip
+                                    key={tag.id}
+                                    label={tag.name}
+                                    variant={isSelected ? "filled" : "outlined"}
+                                    color={isSelected ? "primary" : "default"}
+                                    clickable
+                                    onClick={() => handleTagToggle(tag.id)}
+                                    size="small"
+                                  />
+                                );
+                              })}
+                            </Box>
+                          </Collapse>
+                        </Box>
+                      );
+                    })}
+                </Stack>
               </Box>
             </Box>
           </Stack>
@@ -244,7 +327,7 @@ export function ItemsFilter({
                       size="small"
                       onDelete={() => {
                         const newTags = searchOption.tagIds?.filter((id) => id !== tagId) || [];
-                        onFilterChange({ tagIds: newTags.length > 0 ? newTags : undefined });
+                        onFilterChange({ tagIds: newTags });
                       }}
                       deleteIcon={<X size={14} />}
                     />

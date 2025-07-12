@@ -92,14 +92,16 @@ export class TagService {
 
   /**
    * 获取特定服务器相关的所有标签
-   * 通过查询与该服务器项目关联的标签
+   * @param serverId 服务器ID
+   * @param orderBy 排序方式, 可按名称或项目数量排序, 默认按项目数量
    */
-  async getTagsByServerId(serverId: number): Promise<TagWithCount[]> {
-    // 查找与特定服务器相关的所有标签
+  async getTagsByServerId(serverId: number, orderBy: "name" | "count" = "count"): Promise<TagWithCount[]> {
+    const order: Prisma.TagOrderByWithRelationInput =
+      orderBy === "count" ? { items: { _count: "desc" } } : { name: "asc" };
     return await dbClient.tag.findMany({
       where: { items: { some: { embyItems: { some: { embyServerId: serverId } } } } },
       include: { _count: { select: { items: true } } },
-      orderBy: { name: "asc" },
+      orderBy: order,
     });
   }
 

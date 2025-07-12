@@ -3,7 +3,19 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { PageLayout, SearchHeader, ContentArea } from "@/components/common";
 import { Tag as TagIcon, ChevronDown, ChevronRight } from "lucide-react";
-import { Box, Stack, Typography, Paper, TextField, Collapse, IconButton } from "@mui/material";
+import {
+  Box,
+  Stack,
+  Typography,
+  Paper,
+  TextField,
+  Collapse,
+  IconButton,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+} from "@mui/material";
 import { TagWithCount } from "@/lib/service/tag";
 import TagItem from "./components/tag-item";
 import { useDebounce } from "@/lib/hooks/useDebounce";
@@ -12,21 +24,24 @@ interface TagsClientProps {
   allTags: TagWithCount[];
 }
 
+type SortType = "name-asc" | "name-desc" | "count-desc" | "count-asc";
+
 export default function TagsClient({ allTags }: TagsClientProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [minCount, setMinCount] = useState<number | "">(2);
   const [maxCount, setMaxCount] = useState<number | "">("");
   const [showFilters, setShowFilters] = useState(true);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [sortType, setSortType] = useState<SortType>("count-desc");
 
   // 使用防抖处理搜索和数量筛选
   const searchTerm_ = useDebounce(searchTerm, 1000);
   const minCount_ = useDebounce(minCount, 1000);
   const maxCount_ = useDebounce(maxCount, 1000);
 
-  // 过滤标签
+  // 过滤和排序标签
   const filteredTags = useMemo(() => {
-    return allTags.filter((tag) => {
+    const filtered = allTags.filter((tag) => {
       // 名称搜索
       const nameMatch = tag.name.toLowerCase().includes(searchTerm_.toLowerCase());
 
@@ -37,7 +52,22 @@ export default function TagsClient({ allTags }: TagsClientProps) {
 
       return nameMatch && minMatch && maxMatch;
     });
-  }, [searchTerm_, allTags, minCount_, maxCount_]);
+
+    // 排序
+    return filtered.sort((a, b) => {
+      switch (sortType) {
+        case "name-asc":
+          return a.name.localeCompare(b.name);
+        case "name-desc":
+          return b.name.localeCompare(a.name);
+        case "count-asc":
+          return a._count.items - b._count.items;
+        case "count-desc":
+        default:
+          return b._count.items - a._count.items;
+      }
+    });
+  }, [searchTerm_, allTags, minCount_, maxCount_, sortType]);
 
   // 按组分组标签
   const groupedTags = useMemo(() => {
@@ -99,6 +129,10 @@ export default function TagsClient({ allTags }: TagsClientProps) {
     setMaxCount(value === "" ? "" : Number(value));
   }, []);
 
+  const handleSortChange = useCallback((value: SortType) => {
+    setSortType(value);
+  }, []);
+
   return (
     <PageLayout>
       {/* 搜索头部 */}
@@ -114,7 +148,7 @@ export default function TagsClient({ allTags }: TagsClientProps) {
       <Collapse in={showFilters}>
         <Paper sx={{ p: 2, mb: 2, bgcolor: "background.paper", border: 1, borderColor: "divider" }}>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+            <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", alignItems: "center" }}>
               <TextField
                 label="至少包含"
                 type="number"
@@ -137,6 +171,20 @@ export default function TagsClient({ allTags }: TagsClientProps) {
                 inputProps={{ min: 0 }}
                 placeholder="不限制"
               />
+              <FormControl size="small" sx={{ minWidth: 150 }}>
+                <InputLabel>排序方式</InputLabel>
+                <Select
+                  value={sortType}
+                  onChange={(e) => handleSortChange(e.target.value as SortType)}
+                  label="排序方式"
+                  MenuProps={{ disableScrollLock: true }}
+                >
+                  <MenuItem value="count-desc">项目数 (高到低)</MenuItem>
+                  <MenuItem value="count-asc">项目数 (低到高)</MenuItem>
+                  <MenuItem value="name-asc">标签名 (A-Z)</MenuItem>
+                  <MenuItem value="name-desc">标签名 (Z-A)</MenuItem>
+                </Select>
+              </FormControl>
             </Box>
           </Box>
         </Paper>

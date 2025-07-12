@@ -23,7 +23,6 @@ import { useToast } from "@/lib/context/toast-context";
 import { useConfirm } from "@/lib/context/confirm-context";
 import { TagWithCount } from "@/lib/service/tag";
 import Routes from "@/lib/routes";
-import { useRouter } from "next/navigation";
 
 const tagColumns: GridColDef<TagWithCount>[] = [
   { field: "name", headerName: "名称", width: 200 },
@@ -58,7 +57,6 @@ interface TagsAdminProps {
 }
 
 export function TagsAdmin({ initData, groups }: TagsAdminProps) {
-  const router = useRouter();
   const { showSuccess, showError } = useToast();
   const { confirm } = useConfirm();
   const [data] = useState<TagWithCount[]>(initData);
@@ -81,8 +79,8 @@ export function TagsAdmin({ initData, groups }: TagsAdminProps) {
     } else {
       showError(`设置分组失败: ${res.message}`);
     }
-    router.refresh();
-  }, [selectedRows, groupValue, showSuccess, showError, router]);
+    location.reload();
+  }, [selectedRows, groupValue, showSuccess, showError]);
 
   const handleCancelSetGroup = useCallback(() => {
     setSetGroupDialogOpen(false);
@@ -105,8 +103,8 @@ export function TagsAdmin({ initData, groups }: TagsAdminProps) {
     } else {
       showError(`删除失败: ${res.message}`);
     }
-    router.refresh();
-  }, [selectedRows, confirm, showSuccess, showError, router]);
+    location.reload();
+  }, [selectedRows, confirm, showSuccess, showError]);
 
   // 合并标签
   const handleMergeTags = useCallback(async () => {
@@ -128,8 +126,8 @@ export function TagsAdmin({ initData, groups }: TagsAdminProps) {
     } else {
       showError(`合并失败: ${res.message}`);
     }
-    router.refresh();
-  }, [selectedRows, data, confirm, showSuccess, showError, router]);
+    location.reload();
+  }, [selectedRows, data, confirm, showSuccess, showError]);
 
   return (
     <MainLayout>

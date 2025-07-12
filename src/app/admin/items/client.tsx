@@ -23,7 +23,6 @@ import { useToast } from "@/lib/context/toast-context";
 import { useConfirm } from "@/lib/context/confirm-context";
 import Link from "next/link";
 import Routes from "@/lib/routes";
-import { useRouter } from "next/navigation";
 
 type LocalItemWithRelations = LocalItem & {
   tags: Tag[];
@@ -93,7 +92,6 @@ interface ItemsAdminProps {
 }
 
 export function ItemsAdmin({ localItems, allTags }: ItemsAdminProps) {
-  const router = useRouter();
   const { showSuccess, showError } = useToast();
   const { confirm } = useConfirm();
   const [data] = useState<LocalItemWithRelations[]>(localItems);
@@ -120,8 +118,8 @@ export function ItemsAdmin({ localItems, allTags }: ItemsAdminProps) {
     } else {
       showError(`删除失败: ${res.message}`);
     }
-    router.refresh();
-  }, [selectedRows, confirm, showSuccess, showError, router]);
+    location.reload();
+  }, [selectedRows, confirm, showSuccess, showError]);
 
   const handleAddTags = useCallback(async () => {
     if (tagDialogState.adding) {
@@ -148,8 +146,8 @@ export function ItemsAdmin({ localItems, allTags }: ItemsAdminProps) {
     setTagDialogState({ open: false, adding: true });
     setSelectedTags([]);
     setSelectedRows(new Set());
-    router.refresh();
-  }, [selectedRows, selectedTags, tagDialogState, showSuccess, showError, router]);
+    location.reload();
+  }, [selectedRows, selectedTags, tagDialogState, showSuccess, showError]);
 
   return (
     <MainLayout>
@@ -222,7 +220,20 @@ export function ItemsAdmin({ localItems, allTags }: ItemsAdminProps) {
             </Typography>
             <Autocomplete
               multiple
-              options={allTags}
+              options={
+                tagDialogState.adding
+                  ? allTags
+                  : // 移除标签时只显示已选项目上的标签
+                    (() => {
+                      const tags = localItems.filter((item) => selectedRows.has(item.id)).flatMap((item) => item.tags);
+                      const tagIds = new Set(tags.map((tag) => tag.id));
+                      return tagIds
+                        .values()
+                        .map((id) => (tags.length > allTags.length ? allTags : tags).find((tag) => tag.id === id)!)
+                        .toArray()
+                        .sort((a, b) => a.name.localeCompare(b.name));
+                    })()
+              }
               getOptionLabel={(t) => t.name}
               value={selectedTags}
               onChange={(_, newTags) => setSelectedTags(newTags)}

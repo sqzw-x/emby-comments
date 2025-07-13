@@ -4,7 +4,7 @@ import { useMemo, useState, useCallback, JSX } from "react";
 import * as Lucide from "lucide-react";
 import { syncServer, batchProcessMappings } from "@/lib/actions/server";
 import { useToast } from "@/lib/context/toast-context";
-import type { EmbyServer, LocalItem, EmbyItem } from "@prisma/client";
+import type { EmbyServer, LocalItem } from "@prisma/client";
 import type { ItemMapOperation } from "@/lib/service/item";
 import {
   Box,
@@ -30,14 +30,12 @@ import {
 } from "@mui/material";
 import {
   ExtendedResult,
-  getMatchStatus,
-  MatchStatus,
-  MatchStatusValues,
+  MatchStatusNames,
   UnmatchedItemCard,
   renderMatchStatusIcon,
-  MatchStatusNames,
   MatchedItemCard,
   CustomMapDialog,
+  LocalStatus,
 } from "./sync-card";
 
 // 排序类型
@@ -63,25 +61,27 @@ export default function ServerSync({ server, onClose }: ServerSyncProps) {
   const [sortBy, setSortBy] = useState<SortType>("title");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   // 选择状态
-  const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
+  const [selectedItems, setSelectedItems] = useState<Set<ExtendedResult>>(new Set());
 
-  // 待处理操作队列
+  // 待处理
+  const [pendingItems, setPendingItems] = useState<ExtendedResult[]>([]);
   const [pendingActions, setPendingActions] = useState<ItemMapOperation[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
 
   // 自定义映射对话框状态
-  const [isCustomMapDialogOpen, setIsCustomMapDialogOpen] = useState(false);
-  const [customMapEmbyItem, setCustomMapEmbyItem] = useState<EmbyItem | null>(null);
+  const [customMapItem, setCustomMapItem] = useState<ExtendedResult | null>(null);
 
   // 计算不同状态的项目
-  const itemsByStatus = useMemo(() => {
+  const syncItems = useMemo(() => {
     const exact = results.filter((item) => item.status === "exact");
     const multiple = results.filter((item) => item.status === "multiple");
     const none = results.filter((item) => item.status === "none");
     const matched = results.filter((item) => item.status === "matched");
-
     return { exact, multiple, none, matched };
   }, [results]);
+  const itemsByStatus = useMemo(() => {
+    return { ...syncItems, pending: pendingItems };
+  }, [syncItems, pendingItems]);
 
   // 过滤和排序项目的通用函数
   const filterAndSortItems = useCallback(
@@ -168,23 +168,17 @@ export default function ServerSync({ server, onClose }: ServerSyncProps) {
     setSortBy("title");
     setSortOrder("asc");
     setPendingActions([]);
+    setPendingItems([]);
 
     const syncRes = await syncServer(server);
     if (syncRes.success) {
       setSyncStatus("success");
-      const extendedResults: ExtendedResult[] = syncRes.value.map((item) => {
-        const status = getMatchStatus(item);
-        return {
-          ...item,
-          status,
-        };
-      });
-      if (extendedResults.length === 0) {
+      if (syncRes.value.reduce((total, item) => total + (item.status !== "matched" ? 1 : 0), 0) === 0) {
         toast.showSuccess("同步完成，所有项目均已匹配");
       } else {
-        toast.showSuccess(`同步完成，发现 ${extendedResults.length} 个需要处理的项目`);
+        toast.showSuccess(`同步完成，发现 ${syncRes.value.length} 个需要处理的项目`);
       }
-      setResults(extendedResults);
+      setResults(syncRes.value);
     } else {
       setSyncStatus("error");
       toast.showError(`同步失败: ${syncRes.message}`);
@@ -205,77 +199,50 @@ export default function ServerSync({ server, onClose }: ServerSyncProps) {
     }
     setIsProcessing(false);
   };
-  // 添加到待处理操作队列 (前端操作)
-  const addPendingAction = (action: ItemMapOperation) => {
-    setPendingActions((prev) => {
-      // 移除针对同一项目的现有操作，然后添加新操作
-      const filtered = prev.filter((a) => a.embyItemId !== action.embyItemId);
-      return [...filtered, action];
-    });
 
-    // 更新结果项的状态
-    setResults((prev) =>
-      prev.map((item) => {
-        if (item.item.id === action.embyItemId) {
-          let newStatus: MatchStatus;
-          if (action.type === "unmap") {
-            newStatus = getMatchStatus(item);
-          } else {
-            newStatus = "matched";
-          }
-
-          return {
-            ...item,
-            status: newStatus,
-            pendingAction: action,
-          };
-        }
-        return item;
-      })
-    );
+  // 添加到待处理操作队列
+  const addPendingAction = (action: ItemMapOperation, item: ExtendedResult) => {
+    item.pendingAction = action;
+    // 添加待处理操作
+    setPendingActions((prev) => [...prev, action]);
+    // 添加到待处理项目
+    setPendingItems((prev) => [...prev, item]);
+    // 从结果中移除
+    setResults((prev) => prev.filter((i) => i !== item));
   };
 
   // 移除待处理操作
-  const removePendingAction = (embyItemId: number) => {
-    setPendingActions((prev) => prev.filter((a) => a.embyItemId !== embyItemId));
-    // 恢复项目的原始状态
-    setResults((prev) =>
-      prev.map((item) => {
-        if (item.item.id === embyItemId) {
-          const originalStatus = getMatchStatus(item);
-          return {
-            ...item,
-            status: originalStatus,
-            pendingAction: undefined,
-          };
-        }
-        return item;
-      })
-    );
+  const removePendingAction = (item: ExtendedResult) => {
+    if (!item.pendingAction) return;
+    // 从待处理操作中移除
+    setPendingActions((prev) => prev.filter((a) => a !== item.pendingAction));
+    // 从待处理项目中移除
+    setPendingItems((prev) => prev.filter((i) => i !== item));
+    // 将项目重新添加到结果中
+    setResults((prev) => [...prev, item]);
   };
 
-  // region 前端操作
   // 选择最佳匹配
   const handleSelectBestMatch = (item: ExtendedResult) => {
     if (item.matches.length === 0) return;
     const bestMatch = item.matches.reduce((best, current) => (current.score > best.score ? current : best));
-    addPendingAction({ type: "map", embyItemId: item.item.id, localItemId: bestMatch.id });
+    addPendingAction({ type: "map", embyItemId: item.item.id, localItemId: bestMatch.id }, item);
   };
   // 选择指定匹配
-  const handleSelectMatch = (embyItem: EmbyItem, localItem: LocalItem) => {
-    const item = results.find((r) => r.item.id === embyItem.id);
-    if (item) item.selected = localItem;
-    addPendingAction({ type: "map", embyItemId: embyItem.id, localItemId: localItem.id });
+  const handleSelectMatch = (item: ExtendedResult, localItem: LocalItem) => {
+    item.selected = localItem;
+    addPendingAction({ type: "map", embyItemId: item.item.id, localItemId: localItem.id }, item);
   };
   // 创建新项目
-  const handleCreateNew = (item: ExtendedResult) => addPendingAction({ type: "create", embyItemId: item.item.id });
-  // 撤销操作
-  const handleCancel = (embyItemId: number) => removePendingAction(embyItemId);
+  const handleCreateNew = (item: ExtendedResult) =>
+    addPendingAction({ type: "create", embyItemId: item.item.id }, item);
+  // 刷新数据
+  const handleRefresh = (item: ExtendedResult) => addPendingAction({ type: "refresh", embyItemId: item.item.id }, item);
+
   // 批量选择最佳匹配
   const handleBatchSelectBestMatch = () => {
-    selectedItems.forEach((itemId) => {
-      const item = results.find((r) => r.item.id === itemId);
-      if (item && item.matches.length > 0) {
+    selectedItems.forEach((item) => {
+      if (item.matches.length > 0) {
         handleSelectBestMatch(item);
       }
     });
@@ -283,26 +250,28 @@ export default function ServerSync({ server, onClose }: ServerSyncProps) {
   };
   // 批量创建新项目
   const handleBatchCreateNew = () => {
-    selectedItems.forEach((itemId) => {
-      const item = results.find((r) => r.item.id === itemId);
-      if (item) handleCreateNew(item);
-    });
+    selectedItems.forEach((item) => handleCreateNew(item));
+    setSelectedItems(new Set());
+  };
+  // 批量刷新
+  const handleBatchRefresh = () => {
+    selectedItems.forEach((item) => handleRefresh(item));
     setSelectedItems(new Set());
   };
   // 批量撤销
   const handleBatchCancel = () => {
-    selectedItems.forEach((itemId) => handleCancel(itemId));
+    selectedItems.forEach((item) => removePendingAction(item));
     setSelectedItems(new Set());
   };
 
   // 切换选择
-  const toggleSelection = (itemId: number) => {
+  const toggleSelection = (item: ExtendedResult) => {
     setSelectedItems((prev) => {
       const newSet = new Set(prev);
-      if (newSet.has(itemId)) {
-        newSet.delete(itemId);
+      if (newSet.has(item)) {
+        newSet.delete(item);
       } else {
-        newSet.add(itemId);
+        newSet.add(item);
       }
       return newSet;
     });
@@ -310,18 +279,8 @@ export default function ServerSync({ server, onClose }: ServerSyncProps) {
 
   // 全选/取消全选
   const toggleSelectAll = () => {
-    const allIds = currentTabItems.map((item) => item.item.id);
-    const allSelected = allIds.every((id) => selectedItems.has(id));
-
-    setSelectedItems((prev) => {
-      const newSet = new Set(prev);
-      if (allSelected) {
-        allIds.forEach((id) => newSet.delete(id));
-      } else {
-        allIds.forEach((id) => newSet.add(id));
-      }
-      return newSet;
-    });
+    const allSelected = currentTabItems.every((item) => selectedItems.has(item));
+    setSelectedItems(() => (allSelected ? new Set() : new Set(currentTabItems)));
   };
 
   // 获取类型列表用于过滤
@@ -353,7 +312,7 @@ export default function ServerSync({ server, onClose }: ServerSyncProps) {
   const renderBasicList = (
     onBatchButtonClick: () => void,
     batchButtonText: string,
-    BatchButtonIcon: typeof Lucide.Link | typeof Lucide.X,
+    BatchButtonIcon: Lucide.LucideIcon,
     renderItem: (item: ExtendedResult) => JSX.Element
   ) => (
     <Stack spacing={2}>
@@ -364,20 +323,18 @@ export default function ServerSync({ server, onClose }: ServerSyncProps) {
             <FormControlLabel
               control={
                 <Checkbox
-                  checked={
-                    currentTabItems.length > 0 && currentTabItems.every((item) => selectedItems.has(item.item.id))
-                  }
+                  checked={currentTabItems.length > 0 && currentTabItems.every((item) => selectedItems.has(item))}
                   onChange={() => toggleSelectAll()}
                 />
               }
               label={
                 <Typography variant="body2" color="text.secondary">
-                  已选择 {currentTabItems.filter((item) => selectedItems.has(item.item.id)).length} 项
+                  已选择 {currentTabItems.filter((item) => selectedItems.has(item)).length} 项
                 </Typography>
               }
             />
           </Stack>
-          {currentTabItems.some((item) => selectedItems.has(item.item.id)) && (
+          {currentTabItems.some((item) => selectedItems.has(item)) && (
             <Button
               variant="outlined"
               size="small"
@@ -407,28 +364,36 @@ export default function ServerSync({ server, onClose }: ServerSyncProps) {
     <UnmatchedItemCard
       key={item.item.id}
       item={item}
-      selected={selectedItems.has(item.item.id)}
-      onToggle={() => toggleSelection(item.item.id)}
+      selected={selectedItems.has(item)}
+      onToggle={() => toggleSelection(item)}
       onSelectBestMatch={() => handleSelectBestMatch(item)}
-      onSelectMatch={(localItem) => handleSelectMatch(item.item, localItem)}
+      onSelectMatch={(localItem) => handleSelectMatch(item, localItem)}
       onCreateNew={() => handleCreateNew(item)}
-      onCustomMap={() => {
-        setCustomMapEmbyItem(item.item);
-        setIsCustomMapDialogOpen(true);
-      }}
-      onRemovePendingAction={() => removePendingAction(item.item.id)}
+      onCustomMap={() => setCustomMapItem(item)}
+      onRemovePendingAction={() => removePendingAction(item)}
+    />
+  );
+  const renderPendingItem = (item: ExtendedResult) => (
+    <MatchedItemCard
+      key={item.item.id}
+      item={item}
+      selected={selectedItems.has(item)}
+      onToggle={() => toggleSelection(item)}
+      onClickAction={() => removePendingAction(item)}
+      actionIcon={Lucide.X}
     />
   );
   const renderMatchedItem = (item: ExtendedResult) => (
     <MatchedItemCard
       key={item.item.id}
       item={item}
-      selected={selectedItems.has(item.item.id)}
-      onToggle={() => toggleSelection(item.item.id)}
-      onCancel={() => removePendingAction(item.item.id)}
+      selected={selectedItems.has(item)}
+      onToggle={() => toggleSelection(item)}
+      onClickAction={() => handleRefresh(item)}
+      actionIcon={Lucide.RefreshCcw}
     />
   );
-  const renderList = (status: MatchStatus) => {
+  const renderList = (status: LocalStatus) => {
     switch (status) {
       case "exact":
         return renderBasicList(handleBatchSelectBestMatch, "匹配", Lucide.Link, renderUnmatchedItem);
@@ -436,7 +401,9 @@ export default function ServerSync({ server, onClose }: ServerSyncProps) {
       case "none":
         return renderBasicList(handleBatchCreateNew, "新建", Lucide.Plus, renderUnmatchedItem);
       case "matched":
-        return renderBasicList(handleBatchCancel, "撤销", Lucide.X, renderMatchedItem);
+        return renderBasicList(handleBatchRefresh, "刷新", Lucide.RefreshCcw, renderMatchedItem);
+      case "pending":
+        return renderBasicList(handleBatchCancel, "撤销", Lucide.X, renderPendingItem);
     }
   };
   // region ServerSync 主体
@@ -601,62 +568,66 @@ export default function ServerSync({ server, onClose }: ServerSyncProps) {
               <Box sx={{ width: "100%" }}>
                 <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
                   <Tabs value={activeTab} onChange={(event, newValue) => setActiveTab(newValue)} variant="fullWidth">
-                    {MatchStatusValues.map((status) => (
-                      <Tab
-                        key={status}
-                        value={status}
-                        label={
-                          <Stack direction="row" alignItems="center" spacing={1}>
-                            {renderMatchStatusIcon(status)}
-                            <Typography variant="body2">
-                              {MatchStatusNames[status]} ({itemsByStatus[status].length})
-                            </Typography>
-                          </Stack>
-                        }
-                      />
-                    ))}
+                    {MatchStatusNames.entries()
+                      .map(([status, name]) => (
+                        <Tab
+                          key={status}
+                          value={status}
+                          label={
+                            <Stack direction="row" alignItems="center" spacing={1}>
+                              {renderMatchStatusIcon(status)}
+                              <Typography variant="body2">
+                                {name} ({itemsByStatus[status].length})
+                              </Typography>
+                            </Stack>
+                          }
+                        />
+                      ))
+                      .toArray()}
                   </Tabs>
                 </Box>
-                {MatchStatusValues.map((status) => (
-                  <Box key={status} role="tabpanel" hidden={activeTab !== status} sx={{ mt: 3 }}>
-                    {activeTab === status && (
-                      <>
-                        {itemsByStatus[status].length > 0 ? (
-                          renderList(status)
-                        ) : (
-                          <Paper
-                            sx={{
-                              minHeight: 400,
-                              display: "flex",
-                              flexDirection: "column",
-                              justifyContent: "center",
-                              alignItems: "center",
-                              py: 8,
-                            }}
-                          >
-                            {renderMatchStatusIcon(status)}
-                            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                              暂无{MatchStatusNames[status]}项目
-                            </Typography>
-                          </Paper>
-                        )}
-                      </>
-                    )}
-                  </Box>
-                ))}
+                {MatchStatusNames.entries()
+                  .map(([status, name]) => (
+                    <Box key={status} role="tabpanel" hidden={activeTab !== status} sx={{ mt: 3 }}>
+                      {activeTab === status && (
+                        <>
+                          {itemsByStatus[status].length > 0 ? (
+                            renderList(status)
+                          ) : (
+                            <Paper
+                              sx={{
+                                minHeight: 400,
+                                display: "flex",
+                                flexDirection: "column",
+                                justifyContent: "center",
+                                alignItems: "center",
+                                py: 8,
+                              }}
+                            >
+                              {renderMatchStatusIcon(status)}
+                              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                                暂无{name}项目
+                              </Typography>
+                            </Paper>
+                          )}
+                        </>
+                      )}
+                    </Box>
+                  ))
+                  .toArray()}
               </Box>
             </>
           )}
 
           {/* 自定义映射对话框 */}
-          {isCustomMapDialogOpen && customMapEmbyItem && (
+          {customMapItem && (
             <CustomMapDialog
-              onClose={() => setIsCustomMapDialogOpen(false)}
-              embyItem={customMapEmbyItem}
+              onClose={() => setCustomMapItem(null)}
+              item={customMapItem}
               serverId={server.id}
               onMap={(embyItem, localItem) => {
                 handleSelectMatch(embyItem, localItem);
-                setIsCustomMapDialogOpen(false);
+                setCustomMapItem(null);
               }}
             />
           )}

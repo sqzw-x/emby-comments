@@ -8,12 +8,15 @@ import { compareStrings } from "../utils/string-utils";
 export type LocalItemWithScore = LocalItem & {
   score: number;
 };
+
+export type MatchStatus = "exact" | "multiple" | "none" | "matched";
+
 export type ItemSyncResult = {
   item: EmbyItem;
   matches: LocalItemWithScore[];
-  exact: boolean; // 是否为精确匹配
+  status: MatchStatus;
 };
-export type SyncResult = ItemSyncResult[];
+
 export type ItemMapOperation =
   | {
       type: "map";
@@ -22,6 +25,10 @@ export type ItemMapOperation =
     }
   | {
       type: "unmap" | "create";
+      embyItemId: number;
+    }
+  | {
+      type: "refresh";
       embyItemId: number;
     };
 
@@ -83,69 +90,9 @@ export class ItemService {
   }
 
   /**
-   * 从 EmbyItem 创建 LocalItem 并建立映射关系. 会自动添加 Genre 中已存在的 tag.
-   */
-  async createLocalItemFromEmby(id: number) {
-    const item = await dbClient.embyItem.findUnique({
-      where: { id },
-    });
-    if (!item) throw new Error("Emby项目不存在");
-    if (item.localItemId) throw new Error("该项目已映射到本地项目");
-
-    return await dbClient.$transaction(async (tx) => {
-      // 创建本地项目
-      const localItem = await tx.localItem.create({
-        data: {
-          title: item.title,
-          originalTitle: item.originalTitle || item.title,
-          overview: item.overview,
-          type: item.type,
-          premiereDate: item.premiereDate,
-          externalIds: item.externalIds ?? undefined,
-        },
-      });
-      // 添加标签
-      await this.autoTag(tx, localItem, item);
-      // 创建关联
-      await tx.embyItem.update({ where: { id: item.id }, data: { localItem: { connect: { id: localItem.id } } } });
-      return localItem;
-    });
-  }
-  /**
-   * 手动映射本地项目和Emby项目
-   */
-  async mapItem(localItemId: number, embyItemId: number) {
-    // 检查本地项目和Emby项目是否存在
-    const localItem = await dbClient.localItem.findUnique({
-      where: { id: localItemId },
-      include: { tags: true },
-    });
-
-    const embyItem = await dbClient.embyItem.findUnique({
-      where: { id: embyItemId },
-      include: { localItem: true },
-    });
-
-    if (!localItem || !embyItem) throw new Error("本地或 Emby 数据不存在");
-    // 检查是否已经映射
-    if (embyItem?.localItem?.id === localItemId) return;
-
-    return await dbClient.$transaction(async (tx) => {
-      // 建立映射
-      const updatedEmbyItem = await tx.embyItem.update({
-        where: { id: embyItemId },
-        data: { localItem: { connect: { id: localItemId } } },
-      });
-      // 添加标签
-      await this.autoTag(tx, localItem, embyItem);
-      return updatedEmbyItem;
-    });
-  }
-
-  /**
    * 同步服务器项目并返回同步结果
    */
-  async syncEmby(server: EmbyServer): Promise<SyncResult> {
+  async syncEmby(server: EmbyServer): Promise<ItemSyncResult[]> {
     const embyClient = new EmbyClient(server);
     // 获取 emby 的所有项目
     const serverItems = await embyClient.getItems({
@@ -173,24 +120,14 @@ export class ItemService {
       // 如果数量不一致，可能是有删除的项目
       // 删除当前服务器上不存在的 ID
       const { count } = await dbClient.embyItem.deleteMany({
-        where: {
-          embyServerId: server.id,
-          embyId: {
-            notIn: allEmbyItems.map((item) => item.embyId),
-          },
-        },
+        where: { embyServerId: server.id, embyId: { notIn: allEmbyItems.map((item) => item.embyId) } },
       });
       console.debug(`删除了 ${count} 个不存在于服务器的项目`);
     }
 
-    // 获取 localItem
+    // 获取 localItem, 仅获取在当前服务器上无映射的 localItem
     const allLocalItems = await dbClient.localItem.findMany({
-      where: {
-        // 仅获取在当前服务器上无映射的 localItem
-        embyItems: {
-          none: { embyServerId: server.id },
-        },
-      },
+      where: { embyItems: { none: { embyServerId: server.id } } },
     });
     console.debug(`共有 ${allLocalItems.length} 个未与此服务器映射的本地项目`);
 
@@ -206,15 +143,16 @@ export class ItemService {
     allEmbyItems: Prisma.EmbyItemGetPayload<{ include: { localItem: true } }>[]
   ) {
     const matchedLocalItems = new Set();
-    const res: SyncResult = [];
+    const res: ItemSyncResult[] = [];
     const exactMatch = (embyItem: EmbyItem, localItem: LocalItem) => {
       matchedLocalItems.add(localItem.id);
-      res.push({ item: embyItem, matches: [{ ...localItem, score: 1 }], exact: true });
+      res.push({ item: embyItem, matches: [{ ...localItem, score: 1 }], status: "exact" });
     };
 
     out: for (const embyItem of allEmbyItems) {
       if (embyItem.localItem) {
         // 已经映射, 跳过
+        res.push({ item: embyItem, matches: [], status: "matched" });
         continue;
       }
 
@@ -265,7 +203,7 @@ export class ItemService {
       }
       // 按分数降序排序
       matches.sort((a, b) => b.score - a.score).slice(0, 5);
-      res.push({ item: embyItem, matches, exact: false });
+      res.push({ item: embyItem, matches, status: matches.length > 0 ? "multiple" : "none" });
     }
     return res;
   }
@@ -298,6 +236,12 @@ export class ItemService {
             await this.unmapItem(op.embyItemId);
             results.success.push(op.embyItemId);
             break;
+          case "refresh":
+            await this.updateLocalItem(op.embyItemId);
+            break;
+          default:
+            // @ts-expect-error switch case exhaustive check
+            throw new Error(`不支持的操作类型: ${op.type}`);
         }
       } catch (error) {
         results.failed.push({ id: op.embyItemId, error: error instanceof Error ? error.message : "未知错误" });
@@ -307,8 +251,88 @@ export class ItemService {
     return results;
   }
 
+  /**
+   * 从 EmbyItem 中获取可用于 LocalItem 的数据
+   * @param item EmbyItem
+   * @returns LocalItem 数据
+   */
+  private getLocalData(item: EmbyItem) {
+    return {
+      title: item.title,
+      originalTitle: item.originalTitle || item.title,
+      overview: item.overview,
+      type: item.type,
+      premiereDate: item.premiereDate,
+      externalIds: item.externalIds ?? undefined,
+    };
+  }
+
+  /**
+   * 从 EmbyItem 创建 LocalItem 并建立映射关系. 会自动添加 Genre 中已存在的 tag.
+   */
+  async createLocalItemFromEmby(id: number) {
+    const item = await dbClient.embyItem.findUnique({
+      where: { id },
+    });
+    if (!item) throw new Error("Emby项目不存在");
+    if (item.localItemId) throw new Error("该项目已映射到本地项目");
+
+    return await dbClient.$transaction(async (tx) => {
+      // 创建本地项目
+      const localItem = await tx.localItem.create({ data: this.getLocalData(item) });
+      // 添加标签
+      await this.autoTag(tx, localItem, item);
+      // 创建关联
+      await tx.embyItem.update({ where: { id: item.id }, data: { localItem: { connect: { id: localItem.id } } } });
+      return localItem;
+    });
+  }
+
+  /**
+   * 使用 EmbyItem 的数据更新 LocalItem
+   * @param id LocalItem ID
+   * @param embyItem EmbyItem
+   */
+  async updateLocalItem(embyItemId: number) {
+    const embyItem = await dbClient.embyItem.findUnique({ where: { id: embyItemId } });
+    if (!embyItem) throw new Error("Emby项目不存在");
+    const id = embyItem.localItemId;
+    if (!id) throw new Error("该项目未映射到本地项目");
+    return await dbClient.localItem.update({ where: { id }, data: this.getLocalData(embyItem) });
+  }
+  /**
+   * 手动映射本地项目和Emby项目
+   */
+  async mapItem(localItemId: number, embyItemId: number) {
+    // 检查本地项目和Emby项目是否存在
+    const localItem = await dbClient.localItem.findUnique({
+      where: { id: localItemId },
+      include: { tags: true },
+    });
+
+    const embyItem = await dbClient.embyItem.findUnique({
+      where: { id: embyItemId },
+      include: { localItem: true },
+    });
+
+    if (!localItem || !embyItem) throw new Error("本地或 Emby 数据不存在");
+    // 检查是否已经映射
+    if (embyItem?.localItem?.id === localItemId) return;
+
+    return await dbClient.$transaction(async (tx) => {
+      // 建立映射
+      const updatedEmbyItem = await tx.embyItem.update({
+        where: { id: embyItemId },
+        data: { localItem: { connect: { id: localItemId } } },
+      });
+      // 添加标签
+      await this.autoTag(tx, localItem, embyItem);
+      return updatedEmbyItem;
+    });
+  }
+
   async unmapItem(embyItemId: number) {
-    await dbClient.embyItem.update({ where: { id: embyItemId }, data: { localItemId: null } });
+    await dbClient.embyItem.update({ where: { id: embyItemId }, data: { localItem: { disconnect: true } } });
   }
 
   /**

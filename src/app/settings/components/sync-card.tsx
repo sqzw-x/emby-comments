@@ -1,8 +1,8 @@
-import type { ItemSyncResult, ItemMapOperation } from "@/lib/service/item";
-import { useState, useEffect, useCallback } from "react";
+import type { ItemSyncResult, ItemMapOperation, MatchStatus } from "@/lib/service/item";
+import { useState, useCallback } from "react";
 import * as Lucide from "lucide-react";
 import { getUnmappedLocalItems } from "@/lib/actions/server";
-import type { LocalItem, EmbyItem } from "@prisma/client";
+import type { LocalItem } from "@prisma/client";
 import {
   Card,
   CardContent,
@@ -16,17 +16,18 @@ import {
   Alert,
   TextField,
 } from "@mui/material";
+import { useDebounceValue } from "usehooks-ts";
 
-// 匹配状态类型
-export const MatchStatusNames = {
-  exact: "精确匹配",
-  multiple: "候选匹配",
-  none: "无匹配",
-  matched: "已匹配",
-} as const;
-export type MatchStatus = keyof typeof MatchStatusNames;
-export const MatchStatusValues = Object.keys(MatchStatusNames) as (keyof typeof MatchStatusNames)[];
-export const renderMatchStatusIcon = (status: MatchStatus) => {
+export type LocalStatus = MatchStatus | "pending";
+export const MatchStatusNames: Map<LocalStatus, string> = new Map([
+  ["exact", "精确匹配"],
+  ["multiple", "候选匹配"],
+  ["none", "无匹配"],
+  ["matched", "已匹配"],
+  ["pending", "待处理"],
+]);
+
+export const renderMatchStatusIcon = (status: LocalStatus) => {
   switch (status) {
     case "exact":
       return <Lucide.CheckCircle style={{ width: 16, height: 16, color: "#16a34a" }} />;
@@ -36,23 +37,15 @@ export const renderMatchStatusIcon = (status: MatchStatus) => {
       return <Lucide.Link style={{ width: 16, height: 16, color: "#dc2626" }} />;
     case "matched":
       return <Lucide.Check style={{ width: 16, height: 16, color: "#2563eb" }} />;
+    case "pending":
+      return <Lucide.Clock style={{ width: 16, height: 16, color: "#f59e0b" }} />;
   }
 };
 
 export type ExtendedResult = ItemSyncResult & {
-  status: MatchStatus;
   selected?: LocalItem;
   pendingAction?: ItemMapOperation;
 };
-export function getMatchStatus(item: ItemSyncResult): MatchStatus {
-  if (item.exact) {
-    return "exact";
-  }
-  if (item.matches.length > 0) {
-    return "multiple";
-  }
-  return "none";
-}
 
 interface UnmatchedItemCardProps {
   item: ExtendedResult;
@@ -299,10 +292,17 @@ interface MatchedItemCardProps {
   item: ExtendedResult;
   selected: boolean;
   onToggle: () => void;
-  onCancel: () => void;
+  onClickAction: () => void;
+  actionIcon: Lucide.LucideIcon;
 }
 
-export function MatchedItemCard({ item, selected, onToggle, onCancel }: MatchedItemCardProps) {
+export function MatchedItemCard({
+  item,
+  selected,
+  onToggle,
+  onClickAction,
+  actionIcon: ActionIcon,
+}: MatchedItemCardProps) {
   const isCreated = item.pendingAction?.type === "create";
   const match = item.selected ?? item.matches.at(0);
 
@@ -312,9 +312,7 @@ export function MatchedItemCard({ item, selected, onToggle, onCancel }: MatchedI
       sx={{
         borderColor: "success.main",
         bgcolor: isCreated ? "primary.50" : "success.50",
-        "&:hover": {
-          bgcolor: isCreated ? "primary.100" : "success.100",
-        },
+        "&:hover": { bgcolor: isCreated ? "primary.100" : "success.100" },
       }}
     >
       <CardContent sx={{ p: 3 }}>
@@ -360,13 +358,7 @@ export function MatchedItemCard({ item, selected, onToggle, onCancel }: MatchedI
                 <Typography
                   variant="body2"
                   color="text.secondary"
-                  sx={{
-                    mb: 1,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    cursor: "help",
-                  }}
+                  sx={{ mb: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "help" }}
                   title={`原标题: ${item.item.originalTitle}`}
                 >
                   原标题: {item.item.originalTitle}
@@ -393,14 +385,7 @@ export function MatchedItemCard({ item, selected, onToggle, onCancel }: MatchedI
               {/* 显示匹配的本地项目 */}
               {!isCreated && match && (
                 <Box
-                  sx={{
-                    mt: 2,
-                    p: 2,
-                    border: 1,
-                    borderColor: "divider",
-                    borderRadius: 1,
-                    bgcolor: "background.paper",
-                  }}
+                  sx={{ mt: 2, p: 2, border: 1, borderColor: "divider", borderRadius: 1, bgcolor: "background.paper" }}
                 >
                   <Box display="flex" alignItems="center" justifyContent="space-between">
                     <Box flex={1} minWidth={0}>
@@ -409,12 +394,7 @@ export function MatchedItemCard({ item, selected, onToggle, onCancel }: MatchedI
                       </Typography>
                       <Typography
                         variant="body2"
-                        sx={{
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                          cursor: "help",
-                        }}
+                        sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "help" }}
                         title={match.title}
                       >
                         {match.title}
@@ -423,12 +403,7 @@ export function MatchedItemCard({ item, selected, onToggle, onCancel }: MatchedI
                         <Typography
                           variant="caption"
                           color="text.secondary"
-                          sx={{
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                            cursor: "help",
-                          }}
+                          sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "help" }}
                           title={`原标题: ${match.originalTitle}`}
                         >
                           原标题: {match.originalTitle}
@@ -441,8 +416,8 @@ export function MatchedItemCard({ item, selected, onToggle, onCancel }: MatchedI
             </Box>
           </Box>
 
-          <IconButton size="small" onClick={onCancel} color="default" sx={{ flexShrink: 0 }}>
-            <Lucide.X size={16} />
+          <IconButton size="small" onClick={onClickAction} color="default" sx={{ flexShrink: 0 }}>
+            <ActionIcon size={16} />
           </IconButton>
         </Box>
       </CardContent>
@@ -452,13 +427,13 @@ export function MatchedItemCard({ item, selected, onToggle, onCancel }: MatchedI
 
 interface CustomMapDialogProps {
   onClose: () => void;
-  embyItem: EmbyItem;
+  item: ExtendedResult;
   serverId: number;
-  onMap: (embyItem: EmbyItem, localItem: LocalItem) => void;
+  onMap: (item: ExtendedResult, localItem: LocalItem) => void;
 }
 
-export function CustomMapDialog({ onClose, embyItem, serverId, onMap }: CustomMapDialogProps) {
-  const [searchTerm, setSearchTerm] = useState("");
+export function CustomMapDialog({ onClose, item, serverId, onMap }: CustomMapDialogProps) {
+  const [searchTerm, setSearchTerm] = useDebounceValue("", 300);
   const [availableItems, setAvailableItems] = useState<LocalItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedLocalItem, setSelectedLocalItem] = useState<LocalItem | null>(null);
@@ -479,18 +454,9 @@ export function CustomMapDialog({ onClose, embyItem, serverId, onMap }: CustomMa
     [serverId]
   );
 
-  // 搜索防抖处理
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      loadAvailableItems(searchTerm);
-    }, 300);
-
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm, serverId, loadAvailableItems]);
-
   const handleMap = () => {
     if (selectedLocalItem) {
-      onMap(embyItem, selectedLocalItem);
+      onMap(item, selectedLocalItem);
       onClose();
     }
   };

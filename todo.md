@@ -14,6 +14,8 @@
 - [x] 使用 scripts 进行 Docker 镜像构建
 - [x] 自动转换某些 emby 标签
 - [x] 管理 emby 项目映射关系
+- [ ] 实现 sync unmap 功能 UI
+- [ ] 优化 sync 页代码
 - [ ] 演员展示
 - [ ] (低优先级) 合并 admin 页作为目录页的一种视图
 - [ ] 记录日志

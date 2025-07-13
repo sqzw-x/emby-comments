@@ -7,9 +7,7 @@ import Routes from "@/lib/routes";
 import { getAllExternalLinkProviders } from "@/lib/actions/external-link-provider";
 
 export interface ItemProps {
-  params: Promise<{
-    id: string;
-  }>;
+  params: Promise<{ id: string }>;
 }
 
 export default async function ItemPage({ params }: ItemProps) {

@@ -1,8 +1,9 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { PaletteMode } from "@mui/material/styles";
-import { ThemeMode } from "@/lib/theme";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { PaletteMode, ThemeProvider } from "@mui/material/styles";
+import { ThemeMode, createAppTheme } from "@/lib/theme";
+import CssBaseline from "@mui/material/CssBaseline";
 
 interface ThemeContextType {
   mode: ThemeMode;
@@ -43,10 +44,10 @@ export function ThemeContextProvider({ children }: ThemeContextProviderProps) {
   }, []);
 
   // 保存主题设置到 localStorage
-  const handleSetMode = (newMode: ThemeMode) => {
+  const handleSetMode = useCallback((newMode: ThemeMode) => {
     setMode(newMode);
     localStorage.setItem("theme-mode", newMode);
-  };
+  }, []);
 
   // 计算有效的主题模式
   const effectiveMode: PaletteMode = mode === "system" ? systemMode : mode;
@@ -71,4 +72,20 @@ export function useTheme() {
     throw new Error("useTheme must be used within a ThemeContextProvider");
   }
   return context;
+}
+
+interface MuiThemeProviderProps {
+  children: React.ReactNode;
+}
+
+export default function MuiThemeProvider({ children }: MuiThemeProviderProps) {
+  const { effectiveMode } = useTheme();
+  const theme = createAppTheme(effectiveMode);
+
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      {children}
+    </ThemeProvider>
+  );
 }

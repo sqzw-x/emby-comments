@@ -43,36 +43,26 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   );
 
   const showSuccess = useCallback(
-    (message: string, duration?: number) => {
-      showToast(message, "success", duration);
-    },
+    (message: string, duration?: number) => showToast(message, "success", duration),
     [showToast]
   );
 
   const showError = useCallback(
-    (message: string, duration?: number) => {
-      showToast(message, "error", duration);
-    },
+    (message: string, duration?: number) => showToast(message, "error", duration),
     [showToast]
   );
 
   const showWarning = useCallback(
-    (message: string, duration?: number) => {
-      showToast(message, "warning", duration);
-    },
+    (message: string, duration?: number) => showToast(message, "warning", duration),
     [showToast]
   );
 
   const showInfo = useCallback(
-    (message: string, duration?: number) => {
-      showToast(message, "info", duration);
-    },
+    (message: string, duration?: number) => showToast(message, "info", duration),
     [showToast]
   );
 
-  const handleClose = (id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
+  const handleClose = useCallback((id: string) => setToasts((prev) => prev.filter((t) => t.id !== id)), [setToasts]);
 
   const value = { showToast, showSuccess, showError, showWarning, showInfo };
 
@@ -103,12 +93,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 fontSize: "0.875rem",
                 boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
                 borderRadius: "8px",
-                "& .MuiAlert-icon": {
-                  fontSize: "1.25rem",
-                },
-                "& .MuiAlert-action": {
-                  padding: "0 4px",
-                },
+                "& .MuiAlert-icon": { fontSize: "1.25rem" },
+                "& .MuiAlert-action": { padding: "0 4px" },
               }}
             >
               {toast.message}

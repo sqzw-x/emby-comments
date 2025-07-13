@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import MainLayout from "@/components/layouts/main-layout";
 import { Button, Chip, TextField } from "@mui/material";
 import { Box, Paper, Typography, IconButton, Container, Link } from "@mui/material";
 import { useToast } from "@/lib/context/toast-context";
@@ -277,7 +276,7 @@ export default function ItemClient({ item, activeServer, externalLinkProviders }
   }
 
   return (
-    <MainLayout>
+    <>
       {/* 背景图 */}
       {backdropUrl && (
         <Box sx={{ position: "absolute", left: 0, top: 0, width: "100%", height: 384, overflow: "hidden", zIndex: -1 }}>
@@ -615,6 +614,6 @@ export default function ItemClient({ item, activeServer, externalLinkProviders }
           </Box>
         </Box>
       </Container>
-    </MainLayout>
+    </>
   );
 }

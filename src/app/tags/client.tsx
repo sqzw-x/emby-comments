@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useCallback } from "react";
-import { PageLayout, SearchHeader, ContentArea } from "@/components/common";
+import { SearchHeader, ContentArea } from "@/components/common";
 import { Tag as TagIcon, ChevronDown, ChevronRight } from "lucide-react";
 import {
   Box,
@@ -18,7 +18,7 @@ import {
 } from "@mui/material";
 import { TagWithCount } from "@/lib/service/tag";
 import TagItem from "./components/tag-item";
-import { useDebounce } from "@/lib/hooks/useDebounce";
+import { useDebounceValue } from "usehooks-ts";
 
 interface TagsClientProps {
   allTags: TagWithCount[];
@@ -27,28 +27,23 @@ interface TagsClientProps {
 type SortType = "name-asc" | "name-desc" | "count-desc" | "count-asc";
 
 export default function TagsClient({ allTags }: TagsClientProps) {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [minCount, setMinCount] = useState<number | "">(2);
-  const [maxCount, setMaxCount] = useState<number | "">("");
+  const [searchTerm, setSearchTerm] = useDebounceValue("", 1000);
+  const [minCount, setMinCount] = useDebounceValue<number | "">(2, 1000);
+  const [maxCount, setMaxCount] = useDebounceValue<number | "">("", 1000);
   const [showFilters, setShowFilters] = useState(true);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [sortType, setSortType] = useState<SortType>("count-desc");
-
-  // 使用防抖处理搜索和数量筛选
-  const searchTerm_ = useDebounce(searchTerm, 1000);
-  const minCount_ = useDebounce(minCount, 1000);
-  const maxCount_ = useDebounce(maxCount, 1000);
 
   // 过滤和排序标签
   const filteredTags = useMemo(() => {
     const filtered = allTags.filter((tag) => {
       // 名称搜索
-      const nameMatch = tag.name.toLowerCase().includes(searchTerm_.toLowerCase());
+      const nameMatch = tag.name.toLowerCase().includes(searchTerm.toLowerCase());
 
       // 项目数量筛选
       const itemCount = tag._count.items;
-      const minMatch = minCount_ === "" || itemCount >= Number(minCount_);
-      const maxMatch = maxCount_ === "" || itemCount <= Number(maxCount_);
+      const minMatch = minCount === "" || itemCount >= Number(minCount);
+      const maxMatch = maxCount === "" || itemCount <= Number(maxCount);
 
       return nameMatch && minMatch && maxMatch;
     });
@@ -67,7 +62,7 @@ export default function TagsClient({ allTags }: TagsClientProps) {
           return b._count.items - a._count.items;
       }
     });
-  }, [searchTerm_, allTags, minCount_, maxCount_, sortType]);
+  }, [searchTerm, allTags, minCount, maxCount, sortType]);
 
   // 按组分组标签
   const groupedTags = useMemo(() => {
@@ -115,26 +110,32 @@ export default function TagsClient({ allTags }: TagsClientProps) {
       filteredCount,
       totalItems,
       activeFilters: [
-        typeof minCount_ === "number" && minCount_ > 0 ? `最少${minCount_}项` : null,
-        typeof maxCount_ === "number" ? `最多${maxCount_}项` : null,
+        typeof minCount === "number" && minCount > 0 ? `最少${minCount}项` : null,
+        typeof maxCount === "number" ? `最多${maxCount}项` : null,
       ].filter(Boolean),
     };
-  }, [allTags, filteredTags, minCount_, maxCount_]);
+  }, [allTags, filteredTags, minCount, maxCount]);
 
-  const handleMinCountChange = useCallback((value: string) => {
-    setMinCount(value === "" ? "" : Number(value));
-  }, []);
+  const handleMinCountChange = useCallback(
+    (value: string) => {
+      setMinCount(value === "" ? "" : Number(value));
+    },
+    [setMinCount]
+  );
 
-  const handleMaxCountChange = useCallback((value: string) => {
-    setMaxCount(value === "" ? "" : Number(value));
-  }, []);
+  const handleMaxCountChange = useCallback(
+    (value: string) => {
+      setMaxCount(value === "" ? "" : Number(value));
+    },
+    [setMaxCount]
+  );
 
   const handleSortChange = useCallback((value: SortType) => {
     setSortType(value);
   }, []);
 
   return (
-    <PageLayout>
+    <>
       {/* 搜索头部 */}
       <SearchHeader
         title="标签管理"
@@ -268,6 +269,6 @@ export default function TagsClient({ allTags }: TagsClientProps) {
             })}
         </Stack>
       </ContentArea>
-    </PageLayout>
+    </>
   );
 }

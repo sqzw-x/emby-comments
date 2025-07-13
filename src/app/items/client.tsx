@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { MediaCard, ItemForCard } from "@/components/media/media-card";
-import { PageLayout, SearchHeader, ContentArea, Pagination, paginateArray } from "@/components/common";
+import { SearchHeader, ContentArea, Pagination, paginateArray } from "@/components/common";
 import { ItemsFilter } from "@/components/items/items-filter";
 import { Box, Stack } from "@mui/material";
 import { EmbyServer } from "@prisma/client";
@@ -12,27 +12,22 @@ import Routes from "@/lib/routes";
 import { ItemSearchOptions } from "@/lib/service/item";
 import { toSearchParams } from "@/lib/utils/params";
 import { getNew, NullablePartial } from "@/lib/utils/types";
+import { useConfig } from "@/lib/context/config-context";
 
 interface MoviesClientProps {
   items: ItemForCard[];
   searchOptions: ItemSearchOptions;
   tagOptions: TagWithCount[];
   activeServer: EmbyServer;
-  curPage: number;
-  curPageSize: number;
 }
 
-export default function Items({
-  items,
-  searchOptions,
-  tagOptions,
-  activeServer,
-  curPage,
-  curPageSize,
-}: MoviesClientProps) {
+export default function Items({ items, searchOptions, tagOptions, activeServer }: MoviesClientProps) {
   const router = useRouter();
+  const { config, setConfigKey } = useConfig();
   const [searchOption, setSearchOption] = useState(searchOptions);
   const [showFilters, setShowFilters] = useState(false);
+  const [pageSize, setPageSize] = useState(config["items.pageSize"]);
+  const [curPage, setCurPage] = useState(1);
 
   // embyCreatedAt 排序由前端进行
   const sortedItems = useMemo(() => {
@@ -55,32 +50,37 @@ export default function Items({
 
   // 分页数据
   const paginatedData = useMemo(() => {
-    return paginateArray(sortedItems, curPage, curPageSize);
-  }, [sortedItems, curPage, curPageSize]);
-
-  // 处理搜索逻辑
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateFilters({ search: searchOption.search });
-  };
+    return paginateArray(sortedItems, curPage, pageSize);
+  }, [sortedItems, curPage, pageSize]);
 
   // 更新筛选参数并导航
-  const updateFilters = (newFilters: NullablePartial<ItemSearchOptions & { page?: number; pageSize?: number }>) => {
-    const search = getNew(newFilters.search, searchOption.search);
-    const yearFrom = getNew(newFilters.yearFrom, searchOption.yearFrom);
-    const yearTo = getNew(newFilters?.yearTo, searchOption.yearTo);
-    const tagIds = getNew(newFilters?.tagIds, searchOption.tagIds);
-    const sortBy = getNew(newFilters?.sortBy, searchOption.sortBy);
-    const sortOrder = getNew(newFilters?.sortOrder, searchOption.sortOrder);
-    const page = getNew(newFilters?.page, curPage);
-    const pageSize = getNew(newFilters?.pageSize, curPageSize);
+  const updateFilters = useCallback(
+    (newFilters: NullablePartial<ItemSearchOptions>) => {
+      const search = getNew(newFilters.search, searchOption.search);
+      const yearFrom = getNew(newFilters.yearFrom, searchOption.yearFrom);
+      const yearTo = getNew(newFilters?.yearTo, searchOption.yearTo);
+      const tagIds = getNew(newFilters?.tagIds, searchOption.tagIds);
+      const sortBy = getNew(newFilters?.sortBy, searchOption.sortBy);
+      const sortOrder = getNew(newFilters?.sortOrder, searchOption.sortOrder);
+      if (sortBy) setConfigKey("items.sortBy", sortBy);
+      if (sortOrder) setConfigKey("items.sortOrder", sortOrder);
+      setSearchOption({ search, yearFrom, yearTo, tagIds, sortBy, sortOrder });
+      router.push(Routes.items(toSearchParams({ search, yearFrom, yearTo, tagIds, sortBy, sortOrder })));
+    },
+    [searchOption, setConfigKey, router]
+  );
 
-    setSearchOption({ search, yearFrom, yearTo, tagIds, sortBy, sortOrder });
-    router.push(Routes.items(toSearchParams({ search, yearFrom, yearTo, tagIds, sortBy, sortOrder, page, pageSize })));
-  };
+  // 处理搜索逻辑
+  const handleSearch = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      updateFilters({ search: searchOption.search });
+    },
+    [searchOption.search, updateFilters]
+  );
 
   return (
-    <PageLayout>
+    <>
       {/* 搜索头部 */}
       <SearchHeader
         title="电影库"
@@ -131,20 +131,23 @@ export default function Items({
           </Box>
 
           {/* 分页组件 */}
-          {sortedItems.length > curPageSize && (
+          {sortedItems.length > pageSize && (
             <Pagination
               currentPage={paginatedData.pagination.currentPage}
               totalPages={paginatedData.pagination.totalPages}
-              onPageChange={(i) => updateFilters({ page: i, pageSize: curPageSize })}
+              onPageChange={(i) => setCurPage(i)}
               showPageSizeSelector={true}
-              pageSize={curPageSize}
+              pageSize={pageSize}
               totalItems={sortedItems.length}
               pageSizeOptions={[10, 20, 30, 50]}
-              onPageSizeChange={(newSize) => updateFilters({ page: 1, pageSize: newSize })}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setConfigKey("items.pageSize", newSize);
+              }}
             />
           )}
         </Stack>
       </ContentArea>
-    </PageLayout>
+    </>
   );
 }

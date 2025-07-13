@@ -1,25 +1,8 @@
 "use client";
 
 import React, { ReactNode } from "react";
-import MainLayout from "@/components/layouts/main-layout";
 import { LoadingSkeleton } from "@/components/common";
-import { Box, Typography, Stack } from "@mui/material";
-
-// 基础页面布局组件
-export interface PageLayoutProps {
-  children: ReactNode;
-  className?: string;
-}
-
-export function PageLayout({ children, className = "" }: PageLayoutProps) {
-  return (
-    <MainLayout>
-      <Stack spacing={3} className={className}>
-        {children}
-      </Stack>
-    </MainLayout>
-  );
-}
+import { Box, Typography } from "@mui/material";
 
 // 内容区域组件
 export interface ContentAreaProps {

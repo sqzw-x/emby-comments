@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import MainLayout from "@/components/layouts/main-layout";
 import EmbyServerSetting from "./components/emby-server";
 import ExternalLinkSetting from "./components/external-link";
 import { EmbyServer, ExternalLinkProvider } from "@prisma/client";
@@ -43,23 +42,21 @@ export default function SettingsClient({ initialServers, initialProviders }: Set
     }
   };
   return (
-    <MainLayout>
-      <Stack spacing={4}>
-        <Typography variant="h3" component="h1" sx={{ fontWeight: "bold" }}>
-          设置
-        </Typography>
+    <Stack spacing={4}>
+      <Typography variant="h3" component="h1" sx={{ fontWeight: "bold" }}>
+        设置
+      </Typography>
 
-        <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-          <Tabs value={activeTab} onChange={(_, newValue) => setActiveTab(newValue)}>
-            <Tab label="Emby 服务器" />
-            <Tab label="外部链接" />
-          </Tabs>
-        </Box>
-        {/* Emby 服务器设置 */}
-        {activeTab === 0 && <EmbyServerSetting servers={servers} onServersChange={fetchServers} />}
-        {/* 外部链接设置 */}
-        {activeTab === 1 && <ExternalLinkSetting providers={providers} onProvidersChange={fetchProviders} />}
-      </Stack>
-    </MainLayout>
+      <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+        <Tabs value={activeTab} onChange={(_, newValue) => setActiveTab(newValue)}>
+          <Tab label="Emby 服务器" />
+          <Tab label="外部链接" />
+        </Tabs>
+      </Box>
+      {/* Emby 服务器设置 */}
+      {activeTab === 0 && <EmbyServerSetting servers={servers} onServersChange={fetchServers} />}
+      {/* 外部链接设置 */}
+      {activeTab === 1 && <ExternalLinkSetting providers={providers} onProvidersChange={fetchProviders} />}
+    </Stack>
   );
 }

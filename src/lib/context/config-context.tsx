@@ -7,7 +7,7 @@ import {
   deleteConfigKey as deleteConfigKeyAction,
   resetConfig as resetConfigAction,
 } from "../actions/config";
-import { useLocalStorage } from "../hooks/useLocalStorage";
+import { useLocalStorage } from "usehooks-ts";
 
 type ConfigContextType = {
   config: Config;

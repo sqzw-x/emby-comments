@@ -1,6 +1,5 @@
 "use client";
 
-import MainLayout from "@/components/layouts/main-layout";
 import { useCallback, useMemo, useState } from "react";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import { LocalItem, Tag, Rating } from "@prisma/client";
@@ -24,6 +23,7 @@ import { useConfirm } from "@/lib/context/confirm-context";
 import Link from "next/link";
 import Routes from "@/lib/routes";
 
+// todo
 type LocalItemWithRelations = LocalItem & {
   tags: Tag[];
   rating: Rating | null;
@@ -150,7 +150,7 @@ export function ItemsAdmin({ localItems, allTags }: ItemsAdminProps) {
   }, [selectedRows, selectedTags, tagDialogState, showSuccess, showError]);
 
   return (
-    <MainLayout>
+    <>
       <Box sx={{ mb: 2 }}>
         <Typography variant="h3" component="h1" gutterBottom>
           项目管理
@@ -256,6 +256,6 @@ export function ItemsAdmin({ localItems, allTags }: ItemsAdminProps) {
           </Button>
         </DialogActions>
       </Dialog>
-    </MainLayout>
+    </>
   );
 }

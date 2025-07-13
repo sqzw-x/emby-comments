@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { PageLayout, SearchHeader, ContentArea, Pagination, paginateArray } from "@/components/common";
+import { SearchHeader, ContentArea, Pagination, paginateArray } from "@/components/common";
 import { Card, CardContent, Typography, Stack, Chip, Button as MuiButton } from "@mui/material";
 import { Eye, Trash, Calendar, Film } from "lucide-react";
 import { deleteComment } from "@/lib/actions/comment";
@@ -76,7 +76,7 @@ export default function CommentsClient({ initialComments }: CommentsClientProps)
   }, [searchTerm]);
 
   return (
-    <PageLayout>
+    <>
       {/* 搜索头部 */}
       <SearchHeader
         title="评论管理"
@@ -174,6 +174,6 @@ export default function CommentsClient({ initialComments }: CommentsClientProps)
           )}
         </Stack>
       </ContentArea>
-    </PageLayout>
+    </>
   );
 }

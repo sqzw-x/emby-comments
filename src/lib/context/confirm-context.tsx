@@ -55,10 +55,8 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
     setConfirmState((prev) => ({ ...prev, loading }));
   }, []);
 
-  const value = { confirm, setLoading };
-
   return (
-    <ConfirmContext.Provider value={value}>
+    <ConfirmContext.Provider value={{ confirm, setLoading }}>
       {children}
       {confirmState.open && (
         <Box

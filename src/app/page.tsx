@@ -1,78 +1,81 @@
-import MainLayout from "@/components/layouts/main-layout";
 import Link from "next/link";
 import { Typography, Card, CardContent, Box, Stack, CardActionArea, Button } from "@mui/material";
 import { Film, Tag, MessageSquare, Settings, Wrench, Tags } from "lucide-react";
 import Routes from "@/lib/routes";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Emby Comments - 自定义评论与标签系统",
+  description: "为Emby媒体资源添加自定义评论、标签等信息",
+};
 
 export default function Home() {
   return (
-    <MainLayout>
-      <Stack spacing={4}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography variant="h3" component="h1" sx={{ fontWeight: "bold" }}>
-            欢迎使用 Emby Comments
-          </Typography>
-          <Button variant="contained" component={Link} href={Routes.settings()}>
-            配置 Emby 服务器
-          </Button>
-        </Stack>
-
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: {
-              xs: "1fr",
-              sm: "repeat(2, 1fr)",
-              lg: "repeat(3, 1fr)",
-            },
-            gap: 3,
-          }}
-        >
-          <DashboardCard
-            title="媒体库"
-            description="浏览和管理您的电影、剧集等媒体资源"
-            icon={<Film size={32} />}
-            href={Routes.items()}
-            color="primary.main"
-          />
-          <DashboardCard
-            title="标签"
-            description="创建、编辑和分配标签到您的媒体"
-            icon={<Tag size={32} />}
-            href={Routes.tags()}
-            color="success.main"
-          />
-          <DashboardCard
-            title="评论"
-            description="查看和管理您的评论内容"
-            icon={<MessageSquare size={32} />}
-            href={Routes.comments()}
-            color="secondary.main"
-          />
-          <DashboardCard
-            title="媒体管理"
-            description="批量管理媒体资源，执行高级操作"
-            icon={<Wrench size={32} />}
-            href={Routes.itemsAdmin()}
-            color="error.main"
-          />
-          <DashboardCard
-            title="标签管理"
-            description="批量管理标签，高级标签操作"
-            icon={<Tags size={32} />}
-            href={Routes.tagsAdmin()}
-            color="error.dark"
-          />
-          <DashboardCard
-            title="设置"
-            description="管理系统设置"
-            icon={<Settings size={32} />}
-            href={Routes.settings()}
-            color="grey.700"
-          />
-        </Box>
+    <Stack spacing={4}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center">
+        <Typography variant="h3" component="h1" sx={{ fontWeight: "bold" }}>
+          欢迎使用 Emby Comments
+        </Typography>
+        <Button variant="contained" component={Link} href={Routes.settings()}>
+          配置 Emby 服务器
+        </Button>
       </Stack>
-    </MainLayout>
+
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            sm: "repeat(2, 1fr)",
+            lg: "repeat(3, 1fr)",
+          },
+          gap: 3,
+        }}
+      >
+        <DashboardCard
+          title="媒体库"
+          description="浏览和管理您的电影、剧集等媒体资源"
+          icon={<Film size={32} />}
+          href={Routes.items()}
+          color="primary.main"
+        />
+        <DashboardCard
+          title="标签"
+          description="创建、编辑和分配标签到您的媒体"
+          icon={<Tag size={32} />}
+          href={Routes.tags()}
+          color="success.main"
+        />
+        <DashboardCard
+          title="评论"
+          description="查看和管理您的评论内容"
+          icon={<MessageSquare size={32} />}
+          href={Routes.comments()}
+          color="secondary.main"
+        />
+        <DashboardCard
+          title="媒体管理"
+          description="批量管理媒体资源，执行高级操作"
+          icon={<Wrench size={32} />}
+          href={Routes.itemsAdmin()}
+          color="error.main"
+        />
+        <DashboardCard
+          title="标签管理"
+          description="批量管理标签，高级标签操作"
+          icon={<Tags size={32} />}
+          href={Routes.tagsAdmin()}
+          color="error.dark"
+        />
+        <DashboardCard
+          title="设置"
+          description="管理系统设置"
+          icon={<Settings size={32} />}
+          href={Routes.settings()}
+          color="grey.700"
+        />
+      </Box>
+    </Stack>
   );
 }
 

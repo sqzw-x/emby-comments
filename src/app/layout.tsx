@@ -1,20 +1,16 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import React, { ReactNode } from "react";
 import "./globals.css";
-import { ServerProvider } from "@/lib/context/server-context";
-import { ConfigProvider } from "@/lib/context/config-context";
-import { ThemeContextProvider } from "@/lib/context/theme-context";
+import { Inter } from "next/font/google";
+import { Providers } from "@/components/layouts/providers";
 import { getActiveServer } from "@/lib/actions/server";
-import MuiThemeProvider from "@/components/providers/mui-theme-provider";
-import { AppRouterCacheProvider } from "@mui/material-nextjs/v14-appRouter";
-import { ToastProvider } from "@/lib/context/toast-context";
-import { ConfirmProvider } from "@/lib/context/confirm-context";
 import { getConfig } from "@/lib/actions/config";
 import { DEFAULT_CONFIG } from "@/lib/service/config";
+import { NoServerFallback } from "@/components/layouts/no-server-fallback";
+import { MainContent } from "@/components/layouts/main-content";
 
 const inter = Inter({
   subsets: ["latin"],
-  display: "swap", // 使用font-display: swap提高字体加载性能
+  display: "swap",
   fallback: [
     "system-ui",
     "-apple-system",
@@ -24,31 +20,25 @@ const inter = Inter({
     "Helvetica Neue",
     "Arial",
     "sans-serif",
-  ], // 提供完整的备选字体栈
-  adjustFontFallback: true, // 启用字体调整以减少布局偏移
+  ],
+  adjustFontFallback: true,
 });
 
-export const metadata: Metadata = {
-  title: "Emby Comments - 自定义评论与标签系统",
-  description: "为Emby媒体资源添加自定义评论、标签等信息",
-};
+interface RootLayoutProps {
+  children: ReactNode;
+}
 
-export default async function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default async function RootLayout({ children }: RootLayoutProps) {
   // 在服务端获取激活的服务器
   const server = await getActiveServer();
-  if (!server.success) {
-    // 如果没有激活的服务器，重定向到设置页面
+  if (!server.success || !server.value) {
     return (
       <html lang="zh-CN">
         <head>
           <meta name="emotion-insertion-point" content="" />
         </head>
         <body className={inter.className}>
-          <p>请先设置Emby服务器。</p>
+          <NoServerFallback />
         </body>
       </html>
     );
@@ -69,19 +59,9 @@ export default async function RootLayout({
         <meta name="emotion-insertion-point" content="" />
       </head>
       <body className={inter.className}>
-        <AppRouterCacheProvider>
-          <ThemeContextProvider>
-            <MuiThemeProvider>
-              <ToastProvider>
-                <ConfirmProvider>
-                  <ServerProvider initialActiveServer={server.value}>
-                    <ConfigProvider initial={config}>{children}</ConfigProvider>
-                  </ServerProvider>
-                </ConfirmProvider>
-              </ToastProvider>
-            </MuiThemeProvider>
-          </ThemeContextProvider>
-        </AppRouterCacheProvider>
+        <Providers server={server.value} config={config}>
+          <MainContent>{children}</MainContent>
+        </Providers>
       </body>
     </html>
   );

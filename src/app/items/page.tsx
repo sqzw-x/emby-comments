@@ -7,23 +7,23 @@ import { getTagsByServerId } from "@/lib/actions/tag";
 import { ItemSearchOptions } from "@/lib/service/item";
 import { parseSearchParams, SafeSearchParam } from "@/lib/utils/params";
 import { unstable_noStore } from "next/cache";
+import { getConfig } from "@/lib/actions/config";
 
 export interface ItemsProps {
-  searchParams: Promise<
-    SafeSearchParam<ItemSearchOptions> & {
-      page?: string;
-      pageSize?: string;
-    }
-  >;
+  searchParams: Promise<SafeSearchParam<ItemSearchOptions>>;
 }
 
 export default async function Page({ searchParams }: ItemsProps) {
   unstable_noStore();
   const server = await getActiveServer();
-  if (!server.success || !server.value) {
-    redirect(Routes.settings());
-  }
-  const { page, pageSize, ...query } = await searchParams;
+  if (!server.success || !server.value) redirect(Routes.settings());
+
+  const config = await getConfig();
+  if (!config.success) throw new Error("获取配置失败: " + config.message);
+
+  const query = await searchParams;
+  query.sortBy = query.sortBy || config.value["items.sortBy"];
+  query.sortOrder = query.sortOrder || config.value["items.sortOrder"];
 
   const normalizedQuery = parseSearchParams<ItemSearchOptions>(query, {
     numberFields: ["yearFrom", "yearTo"],
@@ -54,8 +54,6 @@ export default async function Page({ searchParams }: ItemsProps) {
       activeServer={server.value}
       searchOptions={normalizedQuery}
       tagOptions={tags.success ? tags.value : []}
-      curPage={page ? parseInt(page) : 1}
-      curPageSize={pageSize ? parseInt(pageSize) : 20}
     />
   );
 }

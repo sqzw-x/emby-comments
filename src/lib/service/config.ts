@@ -1,17 +1,13 @@
 import { dbClient } from "../db/prisma";
-
-// 配置项的类型定义
-export interface ConfigItem<T = unknown> {
-  key: string;
-  value: T;
-  defaultValue?: T;
-  description?: string;
-}
+import { SortField } from "./item";
 
 // 配置的默认值
 export const DEFAULT_CONFIG = {
   "app.theme": "light" as "light" | "dark" | "system",
-  test: "default value",
+
+  "items.pageSize": 20 as number,
+  "items.sortBy": "embyCreatedAt" as SortField,
+  "items.sortOrder": "desc" as "asc" | "desc",
 };
 
 export type Config = typeof DEFAULT_CONFIG;

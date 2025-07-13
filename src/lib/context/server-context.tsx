@@ -1,9 +1,9 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { EmbyServer } from "@prisma/client";
 import { updateServer } from "../actions/server";
-import { useLocalStorage } from "../hooks/useLocalStorage";
+import { useLocalStorage } from "usehooks-ts";
 
 type ServerContextType = {
   activeServer: EmbyServer | null;
@@ -33,27 +33,30 @@ export function ServerProvider({
   }, [initialActiveServer, activeServer, setActiveServerState]);
 
   // 更新激活服务器的方法
-  const setActiveServer = async (server: EmbyServer | null) => {
-    setIsLoading(true);
+  const setActiveServer = useCallback(
+    async (server: EmbyServer | null) => {
+      setIsLoading(true);
 
-    if (!server) {
-      setActiveServerState(null);
+      if (!server) {
+        setActiveServerState(null);
+        setIsLoading(false);
+        return;
+      }
+
+      // 调用服务端Action激活服务器
+      const result = await updateServer(server.id, { isActive: true });
+
+      if (result.success) {
+        // 更新本地状态
+        setActiveServerState(result.value.server);
+      } else {
+        console.error("更新激活服务器失败:", result.message);
+        throw new Error(result.message);
+      }
       setIsLoading(false);
-      return;
-    }
-
-    // 调用服务端Action激活服务器
-    const result = await updateServer(server.id, { isActive: true });
-
-    if (result.success) {
-      // 更新本地状态
-      setActiveServerState(result.value.server);
-    } else {
-      console.error("更新激活服务器失败:", result.message);
-      throw new Error(result.message);
-    }
-    setIsLoading(false);
-  };
+    },
+    [setActiveServerState]
+  );
 
   return (
     <ServerContext.Provider value={{ activeServer, setActiveServer, isLoading }}>{children}</ServerContext.Provider>

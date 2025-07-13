@@ -2,7 +2,6 @@
 
 import React, { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import MainLayout from "@/components/layouts/main-layout";
 import { SearchHeader, ContentArea, Pagination, paginateArray } from "@/components/common";
 import { MediaCard } from "@/components/media/media-card";
 import Routes from "@/lib/routes";
@@ -120,7 +119,7 @@ export default function TagDetailClient({ tag, activeServer }: TagDetailClientPr
   });
 
   return (
-    <MainLayout>
+    <>
       {/* 标签信息头部 */}
       <Paper sx={{ p: 4, mb: 4 }}>
         <Stack direction="row" alignItems="flex-start" justifyContent="space-between" mb={2}>
@@ -298,6 +297,6 @@ export default function TagDetailClient({ tag, activeServer }: TagDetailClientPr
           />
         </Box>
       )}
-    </MainLayout>
+    </>
   );
 }

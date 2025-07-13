@@ -1,6 +1,5 @@
 "use client";
 
-import MainLayout from "@/components/layouts/main-layout";
 import { useCallback, useMemo, useState } from "react";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import {
@@ -130,7 +129,7 @@ export function TagsAdmin({ initData, groups }: TagsAdminProps) {
   }, [selectedRows, data, confirm, showSuccess, showError]);
 
   return (
-    <MainLayout>
+    <>
       <Box sx={{ mb: 2 }}>
         <Typography variant="h3" component="h1" gutterBottom>
           标签管理
@@ -203,6 +202,6 @@ export function TagsAdmin({ initData, groups }: TagsAdminProps) {
           </Button>
         </DialogActions>
       </Dialog>
-    </MainLayout>
+    </>
   );
 }

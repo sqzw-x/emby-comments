@@ -1,3 +1,5 @@
+"use client";
+
 import React, { ReactNode } from "react";
 import Link from "next/link";
 import {
@@ -15,11 +17,11 @@ import { Home, Settings, Film, Tag, MessageSquare, Wrench, Tags } from "lucide-r
 import Routes from "@/lib/routes";
 import ThemeSwitcher from "./theme-switcher";
 
-interface MainLayoutProps {
+interface MainContentProps {
   children: ReactNode;
 }
 
-const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
+export function MainContent({ children }: MainContentProps) {
   const drawerWidth = 256;
 
   const menuItems = [
@@ -80,6 +82,4 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       </Box>
     </Box>
   );
-};
-
-export default MainLayout;
+}

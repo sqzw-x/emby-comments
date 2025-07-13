@@ -1,4 +1,4 @@
-export { ContentArea, PageLayout, type ContentAreaProps, type PageLayoutProps } from "./list-page";
+export { ContentArea, type ContentAreaProps } from "./list-page";
 export { LoadingSkeleton, type LoadingSkeletonProps } from "./loading-skeleton";
 export {
   calculatePagination,

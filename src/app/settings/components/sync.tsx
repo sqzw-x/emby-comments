@@ -28,21 +28,12 @@ import {
   FormControlLabel,
   Stack,
 } from "@mui/material";
-import {
-  ExtendedResult,
-  MatchStatusNames,
-  UnmatchedItemCard,
-  renderMatchStatusIcon,
-  MatchedItemCard,
-  CustomMapDialog,
-  LocalStatus,
-} from "./sync-card";
+import { ExtendedResult, StatusMap, renderMatchStatusIcon, CustomMapDialog, LocalStatus, ItemCard } from "./sync-card";
 
 // 排序类型
 type SortType = "title" | "year" | "score" | "type";
 type SortOrder = "asc" | "desc";
 
-// region ServerSync
 interface ServerSyncProps {
   server: EmbyServer;
   onClose: () => void;
@@ -53,35 +44,22 @@ export default function ServerSync({ server, onClose }: ServerSyncProps) {
   const [syncStatus, setSyncStatus] = useState<"idle" | "running" | "success" | "error">("idle");
   const [results, setResults] = useState<ExtendedResult[]>([]);
   // 活动标签页
-  const [activeTab, setActiveTab] = useState("exact");
+  const [activeTab, setActiveTab] = useState<LocalStatus>("exact");
   // 过滤状态
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [hasMatchesFilter, setHasMatchesFilter] = useState("all");
   const [sortBy, setSortBy] = useState<SortType>("title");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
-  // 选择状态
+  // 复选框选择状态
   const [selectedItems, setSelectedItems] = useState<Set<ExtendedResult>>(new Set());
 
   // 待处理
   const [pendingItems, setPendingItems] = useState<ExtendedResult[]>([]);
-  const [pendingActions, setPendingActions] = useState<ItemMapOperation[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
 
   // 自定义映射对话框状态
   const [customMapItem, setCustomMapItem] = useState<ExtendedResult | null>(null);
-
-  // 计算不同状态的项目
-  const syncItems = useMemo(() => {
-    const exact = results.filter((item) => item.status === "exact");
-    const multiple = results.filter((item) => item.status === "multiple");
-    const none = results.filter((item) => item.status === "none");
-    const matched = results.filter((item) => item.status === "matched");
-    return { exact, multiple, none, matched };
-  }, [results]);
-  const itemsByStatus = useMemo(() => {
-    return { ...syncItems, pending: pendingItems };
-  }, [syncItems, pendingItems]);
 
   // 过滤和排序项目的通用函数
   const filterAndSortItems = useCallback(
@@ -134,30 +112,23 @@ export default function ServerSync({ server, onClose }: ServerSyncProps) {
     [searchTerm, typeFilter, hasMatchesFilter, sortBy, sortOrder]
   );
 
+  // 计算不同状态的项目
+  const syncItems = useMemo(() => {
+    const exact = filterAndSortItems(results.filter((item) => item.status === "exact"));
+    const multiple = filterAndSortItems(results.filter((item) => item.status === "multiple"));
+    const none = filterAndSortItems(results.filter((item) => item.status === "none"));
+    const matched = filterAndSortItems(results.filter((item) => item.status === "matched"));
+    return { exact, multiple, none, matched };
+  }, [results, filterAndSortItems]);
+  const itemsByStatus = useMemo(() => {
+    return { ...syncItems, pending: filterAndSortItems(pendingItems) };
+  }, [syncItems, pendingItems, filterAndSortItems]);
+
   // 当前标签页的过滤和排序结果
-  const currentTabItems = useMemo(() => {
-    let items: ExtendedResult[] = [];
-    switch (activeTab) {
-      case "exact":
-        items = itemsByStatus.exact;
-        break;
-      case "multiple":
-        items = itemsByStatus.multiple;
-        break;
-      case "none":
-        items = itemsByStatus.none;
-        break;
-      case "matched":
-        items = itemsByStatus.matched;
-        break;
-      default:
-        items = [];
-    }
-    return filterAndSortItems(items);
-  }, [activeTab, itemsByStatus, filterAndSortItems]);
+  const currentTabItems = useMemo(() => itemsByStatus[activeTab], [activeTab, itemsByStatus]);
 
   // 开始同步
-  const doStartSync = async () => {
+  const doStartSync = useCallback(async () => {
     if (!server) return;
     setSyncStatus("running");
     setResults([]);
@@ -167,7 +138,6 @@ export default function ServerSync({ server, onClose }: ServerSyncProps) {
     setHasMatchesFilter("all");
     setSortBy("title");
     setSortOrder("asc");
-    setPendingActions([]);
     setPendingItems([]);
 
     const syncRes = await syncServer(server);
@@ -184,27 +154,26 @@ export default function ServerSync({ server, onClose }: ServerSyncProps) {
       toast.showError(`同步失败: ${syncRes.message}`);
       setResults([]);
     }
-  };
+  }, [server, toast]);
   // 执行操作
-  const doActions = async () => {
-    if (pendingActions.length === 0) return;
+  const doActions = useCallback(async () => {
+    const actions = pendingItems.map((item) => item.pendingAction).filter((item) => !!item);
+    if (actions.length === 0) return;
     setIsProcessing(true);
-    const result = await batchProcessMappings(pendingActions);
+    const result = await batchProcessMappings(actions);
     if (result.success) {
-      toast.showSuccess(`批量操作执行成功，处理了 ${pendingActions.length} 个项目`);
+      toast.showSuccess(`批量操作执行成功，处理了 ${actions.length} 个项目`);
       // 重新同步获取最新状态
       await doStartSync();
     } else {
       toast.showError(`批量操作失败: ${result.message || "未知错误"}`);
     }
     setIsProcessing(false);
-  };
+  }, [pendingItems, doStartSync, toast]);
 
   // 添加到待处理操作队列
   const addPendingAction = (action: ItemMapOperation, item: ExtendedResult) => {
     item.pendingAction = action;
-    // 添加待处理操作
-    setPendingActions((prev) => [...prev, action]);
     // 添加到待处理项目
     setPendingItems((prev) => [...prev, item]);
     // 从结果中移除
@@ -214,8 +183,7 @@ export default function ServerSync({ server, onClose }: ServerSyncProps) {
   // 移除待处理操作
   const removePendingAction = (item: ExtendedResult) => {
     if (!item.pendingAction) return;
-    // 从待处理操作中移除
-    setPendingActions((prev) => prev.filter((a) => a !== item.pendingAction));
+    item.pendingAction = undefined;
     // 从待处理项目中移除
     setPendingItems((prev) => prev.filter((i) => i !== item));
     // 将项目重新添加到结果中
@@ -223,49 +191,71 @@ export default function ServerSync({ server, onClose }: ServerSyncProps) {
   };
 
   // 选择最佳匹配
-  const handleSelectBestMatch = (item: ExtendedResult) => {
+  const handleSelectBestMatch = useCallback((item: ExtendedResult) => {
     if (item.matches.length === 0) return;
     const bestMatch = item.matches.reduce((best, current) => (current.score > best.score ? current : best));
     addPendingAction({ type: "map", embyItemId: item.item.id, localItemId: bestMatch.id }, item);
-  };
+  }, []);
+
   // 选择指定匹配
-  const handleSelectMatch = (item: ExtendedResult, localItem: LocalItem) => {
+  const handleSelectMatch = useCallback((item: ExtendedResult, localItem: LocalItem) => {
     item.selected = localItem;
     addPendingAction({ type: "map", embyItemId: item.item.id, localItemId: localItem.id }, item);
-  };
-  // 创建新项目
-  const handleCreateNew = (item: ExtendedResult) =>
-    addPendingAction({ type: "create", embyItemId: item.item.id }, item);
-  // 刷新数据
-  const handleRefresh = (item: ExtendedResult) => addPendingAction({ type: "refresh", embyItemId: item.item.id }, item);
+  }, []);
 
+  // 创建新项目
+  const handleCreateNew = useCallback(
+    (item: ExtendedResult) => addPendingAction({ type: "create", embyItemId: item.item.id }, item),
+    []
+  );
+
+  // 刷新数据
+  const handleRefresh = useCallback(
+    (item: ExtendedResult) => addPendingAction({ type: "refresh", embyItemId: item.item.id }, item),
+    []
+  );
+
+  // 取消映射
+  const handleUnmap = useCallback(
+    (item: ExtendedResult) => addPendingAction({ type: "unmap", embyItemId: item.item.id }, item),
+    []
+  );
   // 批量选择最佳匹配
-  const handleBatchSelectBestMatch = () => {
+  const handleBatchSelectBestMatch = useCallback(() => {
     selectedItems.forEach((item) => {
       if (item.matches.length > 0) {
         handleSelectBestMatch(item);
       }
     });
     setSelectedItems(new Set());
-  };
+  }, [selectedItems, handleSelectBestMatch]);
+
   // 批量创建新项目
-  const handleBatchCreateNew = () => {
+  const handleBatchCreateNew = useCallback(() => {
     selectedItems.forEach((item) => handleCreateNew(item));
     setSelectedItems(new Set());
-  };
+  }, [selectedItems, handleCreateNew]);
+
   // 批量刷新
-  const handleBatchRefresh = () => {
+  const handleBatchRefresh = useCallback(() => {
     selectedItems.forEach((item) => handleRefresh(item));
     setSelectedItems(new Set());
-  };
+  }, [selectedItems, handleRefresh]);
+
+  // 批量取消映射
+  const handleBatchUnmap = useCallback(() => {
+    selectedItems.forEach((item) => handleUnmap(item));
+    setSelectedItems(new Set());
+  }, [selectedItems, handleUnmap]);
+
   // 批量撤销
-  const handleBatchCancel = () => {
+  const handleBatchCancel = useCallback(() => {
     selectedItems.forEach((item) => removePendingAction(item));
     setSelectedItems(new Set());
-  };
+  }, [selectedItems]);
 
   // 切换选择
-  const toggleSelection = (item: ExtendedResult) => {
+  const toggleSelection = useCallback((item: ExtendedResult) => {
     setSelectedItems((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(item)) {
@@ -275,18 +265,17 @@ export default function ServerSync({ server, onClose }: ServerSyncProps) {
       }
       return newSet;
     });
-  };
+  }, []);
 
   // 全选/取消全选
-  const toggleSelectAll = () => {
-    const allSelected = currentTabItems.every((item) => selectedItems.has(item));
-    setSelectedItems(() => (allSelected ? new Set() : new Set(currentTabItems)));
-  };
+  const toggleSelectAll = useCallback(() => {
+    const notAllSelected = currentTabItems.some((item) => !selectedItems.has(item));
+    setSelectedItems(() => (notAllSelected ? new Set(currentTabItems) : new Set()));
+  }, [currentTabItems, selectedItems]);
 
   // 获取类型列表用于过滤
   const availableTypes = useMemo(() => {
-    const types = new Set(results.map((r) => r.item.type));
-    return Array.from(types);
+    return Array.from(new Set(results.map((r) => r.item.type)));
   }, [results]);
 
   // 准备选择框选项数据
@@ -308,105 +297,127 @@ export default function ServerSync({ server, onClose }: ServerSyncProps) {
     { value: "type", label: "类型" },
   ];
 
-  // region 函数组件
-  const renderBasicList = (
-    onBatchButtonClick: () => void,
-    batchButtonText: string,
-    BatchButtonIcon: Lucide.LucideIcon,
-    renderItem: (item: ExtendedResult) => JSX.Element
-  ) => (
-    <Stack spacing={2}>
-      {/* 批量操作工具栏 */}
-      <Paper variant="outlined" sx={{ p: 2 }}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Stack direction="row" alignItems="center" spacing={2}>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={currentTabItems.length > 0 && currentTabItems.every((item) => selectedItems.has(item))}
-                  onChange={() => toggleSelectAll()}
-                />
-              }
-              label={
-                <Typography variant="body2" color="text.secondary">
-                  已选择 {currentTabItems.filter((item) => selectedItems.has(item)).length} 项
-                </Typography>
-              }
+  const renderUnmatchedItem = useCallback(
+    (item: ExtendedResult) => (
+      <ItemCard
+        key={item.item.id}
+        item={item}
+        selected={selectedItems.has(item)}
+        onToggle={() => toggleSelection(item)}
+        onSelectBestMatch={() => handleSelectBestMatch(item)}
+        onSelectMatch={(localItem) => handleSelectMatch(item, localItem)}
+        actions={[
+          { onClick: removePendingAction, label: "撤销", icon: Lucide.X },
+          { onClick: setCustomMapItem, label: "选择", icon: Lucide.ExternalLink },
+          { onClick: handleCreateNew, label: "新建", icon: Lucide.Plus },
+        ]}
+      />
+    ),
+    [selectedItems, toggleSelection, handleSelectBestMatch, handleSelectMatch, handleCreateNew]
+  );
+
+  const renderPendingItem = useCallback(
+    (item: ExtendedResult) => (
+      <ItemCard
+        key={item.item.id}
+        item={item}
+        selected={selectedItems.has(item)}
+        onToggle={() => toggleSelection(item)}
+        actions={[{ onClick: removePendingAction, label: "撤销", icon: Lucide.X }]}
+      />
+    ),
+    [selectedItems, toggleSelection]
+  );
+
+  const renderMatchedItem = useCallback(
+    (item: ExtendedResult) => (
+      <ItemCard
+        key={item.item.id}
+        item={item}
+        selected={selectedItems.has(item)}
+        onToggle={() => toggleSelection(item)}
+        actions={[
+          { onClick: () => handleRefresh(item), label: "刷新数据", icon: Lucide.RefreshCcw },
+          { onClick: () => handleUnmap(item), label: "取消映射", icon: Lucide.X },
+        ]}
+      />
+    ),
+    [selectedItems, toggleSelection, handleRefresh, handleUnmap]
+  );
+
+  const ItemList = useCallback(
+    ({ status }: { status: LocalStatus }) => {
+      switch (status) {
+        case "exact":
+          return (
+            <ResultList
+              items={itemsByStatus[status]}
+              selectedItems={selectedItems}
+              onToggleSelectAll={toggleSelectAll}
+              renderItem={renderUnmatchedItem}
+              batchActions={[{ onClick: handleBatchSelectBestMatch, label: "选择最佳匹配", icon: Lucide.Check }]}
             />
-          </Stack>
-          {currentTabItems.some((item) => selectedItems.has(item)) && (
-            <Button
-              variant="outlined"
-              size="small"
-              onClick={onBatchButtonClick}
-              startIcon={<BatchButtonIcon className="h-4 w-4" />}
-            >
-              {batchButtonText}
-            </Button>
-          )}
-        </Stack>
-      </Paper>
-      {/* 项目列表 */}
-      <Box sx={{ minHeight: 400 }}>
-        {currentTabItems.length > 0 ? (
-          <Stack spacing={1}>{currentTabItems.map(renderItem)}</Stack>
-        ) : (
-          <Paper sx={{ minHeight: 400, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Typography variant="body2" color="text.secondary">
-              暂无项目
-            </Typography>
-          </Paper>
-        )}
-      </Box>
-    </Stack>
+          );
+        case "multiple":
+        case "none":
+          return (
+            <ResultList
+              items={itemsByStatus[status]}
+              selectedItems={selectedItems}
+              onToggleSelectAll={toggleSelectAll}
+              renderItem={renderUnmatchedItem}
+              batchActions={[{ onClick: handleBatchCreateNew, label: "新建本地项目", icon: Lucide.Plus }]}
+            />
+          );
+        case "matched":
+          return (
+            <ResultList
+              items={itemsByStatus[status]}
+              selectedItems={selectedItems}
+              onToggleSelectAll={toggleSelectAll}
+              renderItem={renderMatchedItem}
+              batchActions={[
+                { onClick: handleBatchRefresh, label: "刷新数据", icon: Lucide.RefreshCcw },
+                { onClick: handleBatchUnmap, label: "取消映射", icon: Lucide.X },
+              ]}
+            />
+          );
+        case "pending":
+          return (
+            <ResultList
+              items={itemsByStatus[status]}
+              selectedItems={selectedItems}
+              onToggleSelectAll={toggleSelectAll}
+              renderItem={renderPendingItem}
+              batchActions={[
+                { onClick: handleBatchCancel, label: "撤销操作", icon: Lucide.X },
+                { onClick: doActions, label: "执行所有操作", icon: Lucide.Check },
+              ]}
+            />
+          );
+      }
+    },
+    [
+      itemsByStatus,
+      selectedItems,
+      toggleSelectAll,
+      renderUnmatchedItem,
+      renderMatchedItem,
+      renderPendingItem,
+      doActions,
+      handleBatchSelectBestMatch,
+      handleBatchCreateNew,
+      handleBatchRefresh,
+      handleBatchUnmap,
+      handleBatchCancel,
+    ]
   );
-  const renderUnmatchedItem = (item: ExtendedResult) => (
-    <UnmatchedItemCard
-      key={item.item.id}
-      item={item}
-      selected={selectedItems.has(item)}
-      onToggle={() => toggleSelection(item)}
-      onSelectBestMatch={() => handleSelectBestMatch(item)}
-      onSelectMatch={(localItem) => handleSelectMatch(item, localItem)}
-      onCreateNew={() => handleCreateNew(item)}
-      onCustomMap={() => setCustomMapItem(item)}
-      onRemovePendingAction={() => removePendingAction(item)}
-    />
+
+  const lists = useMemo(
+    () => new Map(StatusMap.keys().map((status) => [status, <ItemList key={status} status={status} />])),
+    [ItemList]
   );
-  const renderPendingItem = (item: ExtendedResult) => (
-    <MatchedItemCard
-      key={item.item.id}
-      item={item}
-      selected={selectedItems.has(item)}
-      onToggle={() => toggleSelection(item)}
-      onClickAction={() => removePendingAction(item)}
-      actionIcon={Lucide.X}
-    />
-  );
-  const renderMatchedItem = (item: ExtendedResult) => (
-    <MatchedItemCard
-      key={item.item.id}
-      item={item}
-      selected={selectedItems.has(item)}
-      onToggle={() => toggleSelection(item)}
-      onClickAction={() => handleRefresh(item)}
-      actionIcon={Lucide.RefreshCcw}
-    />
-  );
-  const renderList = (status: LocalStatus) => {
-    switch (status) {
-      case "exact":
-        return renderBasicList(handleBatchSelectBestMatch, "匹配", Lucide.Link, renderUnmatchedItem);
-      case "multiple":
-      case "none":
-        return renderBasicList(handleBatchCreateNew, "新建", Lucide.Plus, renderUnmatchedItem);
-      case "matched":
-        return renderBasicList(handleBatchRefresh, "刷新", Lucide.RefreshCcw, renderMatchedItem);
-      case "pending":
-        return renderBasicList(handleBatchCancel, "撤销", Lucide.X, renderPendingItem);
-    }
-  };
-  // region ServerSync 主体
+
   return (
     <Container maxWidth="xl" sx={{ mt: 2 }}>
       <Paper elevation={3} sx={{ overflow: "hidden" }}>
@@ -436,7 +447,7 @@ export default function ServerSync({ server, onClose }: ServerSyncProps) {
                 <Stack direction="row" spacing={1}>
                   <Button
                     onClick={doActions}
-                    disabled={pendingActions.length === 0 || isProcessing}
+                    disabled={pendingItems.length === 0 || isProcessing}
                     variant="outlined"
                     startIcon={
                       isProcessing ? (
@@ -447,8 +458,8 @@ export default function ServerSync({ server, onClose }: ServerSyncProps) {
                     }
                   >
                     {isProcessing ? "执行中..." : "执行所有操作"}
-                    {pendingActions.length > 0 && (
-                      <Chip label={pendingActions.length} size="small" variant="outlined" sx={{ ml: 1 }} />
+                    {pendingItems.length > 0 && (
+                      <Chip label={pendingItems.length} size="small" variant="outlined" sx={{ ml: 1 }} />
                     )}
                   </Button>
                   <Button
@@ -471,153 +482,149 @@ export default function ServerSync({ server, onClose }: ServerSyncProps) {
           </Card>
 
           {/* 结果展示区域 */}
-          {results.length > 0 && (
-            <>
-              {/* 搜索和过滤 */}
-              <Card variant="outlined" sx={{ mb: 3 }}>
-                <CardContent>
-                  <Stack spacing={2}>
-                    <TextField
-                      placeholder="搜索项目标题..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      fullWidth
-                      size="small"
-                      slotProps={{
-                        input: {
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <Lucide.Search className="h-4 w-4 text-gray-400" />
-                            </InputAdornment>
-                          ),
-                        },
-                      }}
-                    />
+          {/* 搜索和过滤 */}
+          <Card variant="outlined" sx={{ mb: 3 }}>
+            <CardContent>
+              <Stack spacing={2}>
+                <TextField
+                  placeholder="搜索项目标题..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  fullWidth
+                  size="small"
+                  slotProps={{
+                    input: {
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Lucide.Search className="h-4 w-4 text-gray-400" />
+                        </InputAdornment>
+                      ),
+                    },
+                  }}
+                />
 
-                    <Stack direction="row" spacing={2} flexWrap="wrap">
-                      <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 200 }}>
-                        <Lucide.Filter className="h-4 w-4 text-gray-500" />
-                        <FormControl size="small" fullWidth>
-                          <Select
-                            value={typeFilter}
-                            onChange={(e: SelectChangeEvent) => setTypeFilter(e.target.value)}
-                            displayEmpty
-                            MenuProps={{ disableScrollLock: true }}
-                          >
-                            {typeFilterOptions.map((option) => (
-                              <MenuItem key={option.value} value={option.value}>
-                                {option.label}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      </Stack>
-
-                      <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 200 }}>
-                        <Lucide.Filter className="h-4 w-4 text-gray-500" />
-                        <FormControl size="small" fullWidth>
-                          <Select
-                            value={hasMatchesFilter}
-                            onChange={(e: SelectChangeEvent) => setHasMatchesFilter(e.target.value)}
-                            displayEmpty
-                            MenuProps={{ disableScrollLock: true }}
-                          >
-                            {hasMatchesFilterOptions.map((option) => (
-                              <MenuItem key={option.value} value={option.value}>
-                                {option.label}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      </Stack>
-
-                      <Stack direction="row" alignItems="center" spacing={1}>
-                        <Lucide.ArrowUpDown className="h-4 w-4 text-gray-500" />
-                        <FormControl size="small" sx={{ minWidth: 100 }}>
-                          <Select
-                            value={sortBy}
-                            onChange={(e: SelectChangeEvent) => setSortBy(e.target.value as SortType)}
-                            displayEmpty
-                            MenuProps={{ disableScrollLock: true }}
-                          >
-                            {sortByOptions.map((option) => (
-                              <MenuItem key={option.value} value={option.value}>
-                                {option.label}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                        <IconButton
-                          size="small"
-                          onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-                          title={sortOrder === "asc" ? "当前升序，点击切换为降序" : "当前降序，点击切换为升序"}
-                        >
-                          {sortOrder === "asc" ? (
-                            <Lucide.ArrowUp className="h-4 w-4 text-blue-600" />
-                          ) : (
-                            <Lucide.ArrowDown className="h-4 w-4 text-blue-600" />
-                          )}
-                        </IconButton>
-                      </Stack>
-                    </Stack>
+                <Stack direction="row" spacing={2} flexWrap="wrap">
+                  <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 200 }}>
+                    <Lucide.Filter className="h-4 w-4 text-gray-500" />
+                    <FormControl size="small" fullWidth>
+                      <Select
+                        value={typeFilter}
+                        onChange={(e: SelectChangeEvent) => setTypeFilter(e.target.value)}
+                        displayEmpty
+                        MenuProps={{ disableScrollLock: true }}
+                      >
+                        {typeFilterOptions.map((option) => (
+                          <MenuItem key={option.value} value={option.value}>
+                            {option.label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
                   </Stack>
-                </CardContent>
-              </Card>
 
-              {/* Tab导航 */}
-              <Box sx={{ width: "100%" }}>
-                <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-                  <Tabs value={activeTab} onChange={(event, newValue) => setActiveTab(newValue)} variant="fullWidth">
-                    {MatchStatusNames.entries()
-                      .map(([status, name]) => (
-                        <Tab
-                          key={status}
-                          value={status}
-                          label={
-                            <Stack direction="row" alignItems="center" spacing={1}>
-                              {renderMatchStatusIcon(status)}
-                              <Typography variant="body2">
-                                {name} ({itemsByStatus[status].length})
-                              </Typography>
-                            </Stack>
-                          }
-                        />
-                      ))
-                      .toArray()}
-                  </Tabs>
-                </Box>
-                {MatchStatusNames.entries()
-                  .map(([status, name]) => (
-                    <Box key={status} role="tabpanel" hidden={activeTab !== status} sx={{ mt: 3 }}>
-                      {activeTab === status && (
-                        <>
-                          {itemsByStatus[status].length > 0 ? (
-                            renderList(status)
-                          ) : (
-                            <Paper
-                              sx={{
-                                minHeight: 400,
-                                display: "flex",
-                                flexDirection: "column",
-                                justifyContent: "center",
-                                alignItems: "center",
-                                py: 8,
-                              }}
-                            >
-                              {renderMatchStatusIcon(status)}
-                              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                                暂无{name}项目
-                              </Typography>
-                            </Paper>
-                          )}
-                        </>
+                  <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 200 }}>
+                    <Lucide.Filter className="h-4 w-4 text-gray-500" />
+                    <FormControl size="small" fullWidth>
+                      <Select
+                        value={hasMatchesFilter}
+                        onChange={(e: SelectChangeEvent) => setHasMatchesFilter(e.target.value)}
+                        displayEmpty
+                        MenuProps={{ disableScrollLock: true }}
+                      >
+                        {hasMatchesFilterOptions.map((option) => (
+                          <MenuItem key={option.value} value={option.value}>
+                            {option.label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Stack>
+
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <Lucide.ArrowUpDown className="h-4 w-4 text-gray-500" />
+                    <FormControl size="small" sx={{ minWidth: 100 }}>
+                      <Select
+                        value={sortBy}
+                        onChange={(e: SelectChangeEvent) => setSortBy(e.target.value as SortType)}
+                        displayEmpty
+                        MenuProps={{ disableScrollLock: true }}
+                      >
+                        {sortByOptions.map((option) => (
+                          <MenuItem key={option.value} value={option.value}>
+                            {option.label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    <IconButton
+                      size="small"
+                      onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                      title={sortOrder === "asc" ? "当前升序，点击切换为降序" : "当前降序，点击切换为升序"}
+                    >
+                      {sortOrder === "asc" ? (
+                        <Lucide.ArrowUp className="h-4 w-4 text-blue-600" />
+                      ) : (
+                        <Lucide.ArrowDown className="h-4 w-4 text-blue-600" />
                       )}
-                    </Box>
+                    </IconButton>
+                  </Stack>
+                </Stack>
+              </Stack>
+            </CardContent>
+          </Card>
+
+          {/* Tab导航 */}
+          <Box sx={{ width: "100%" }}>
+            <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+              <Tabs value={activeTab} onChange={(event, newValue) => setActiveTab(newValue)} variant="fullWidth">
+                {StatusMap.entries()
+                  .map(([status, name]) => (
+                    <Tab
+                      key={status}
+                      value={status}
+                      label={
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          {renderMatchStatusIcon(status)}
+                          <Typography variant="body2">
+                            {name} ({itemsByStatus[status].length})
+                          </Typography>
+                        </Stack>
+                      }
+                    />
                   ))
                   .toArray()}
-              </Box>
-            </>
-          )}
+              </Tabs>
+            </Box>
+            {StatusMap.entries()
+              .map(([status, name]) => (
+                <Box key={status} role="tabpanel" hidden={activeTab !== status} sx={{ mt: 3 }}>
+                  {activeTab === status && (
+                    <>
+                      {itemsByStatus[status].length > 0 ? (
+                        lists.get(status)
+                      ) : (
+                        <Paper
+                          sx={{
+                            minHeight: 400,
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            py: 8,
+                          }}
+                        >
+                          {renderMatchStatusIcon(status)}
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                            暂无{name}项目
+                          </Typography>
+                        </Paper>
+                      )}
+                    </>
+                  )}
+                </Box>
+              ))
+              .toArray()}
+          </Box>
 
           {/* 自定义映射对话框 */}
           {customMapItem && (
@@ -636,3 +643,64 @@ export default function ServerSync({ server, onClose }: ServerSyncProps) {
     </Container>
   );
 }
+
+const ResultList = ({
+  items,
+  selectedItems,
+  onToggleSelectAll,
+  renderItem,
+  batchActions,
+}: {
+  items: ExtendedResult[];
+  selectedItems: Set<ExtendedResult>;
+  onToggleSelectAll: () => void;
+  renderItem: (item: ExtendedResult) => JSX.Element;
+  batchActions: { onClick: () => void; label: string; icon: Lucide.LucideIcon }[];
+}) => (
+  <Stack spacing={2}>
+    {/* 批量操作工具栏 */}
+    <Paper variant="outlined" sx={{ p: 2 }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between">
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={items.length > 0 && items.every((item) => selectedItems.has(item))}
+              onChange={onToggleSelectAll}
+            />
+          }
+          label={
+            <Typography variant="body2" color="text.secondary">
+              已选择 {items.filter((item) => selectedItems.has(item)).length} 项
+            </Typography>
+          }
+        />
+        <Stack direction="row" spacing={1}>
+          {batchActions.map((action) => (
+            <Button
+              key={action.label}
+              variant="outlined"
+              size="small"
+              onClick={action.onClick}
+              startIcon={<action.icon className="h-4 w-4" />}
+              disabled={items.every((item) => !selectedItems.has(item))}
+            >
+              {action.label}
+            </Button>
+          ))}
+        </Stack>
+      </Stack>
+    </Paper>
+    {/* 项目列表 */}
+    <Box sx={{ minHeight: 400 }}>
+      {items.length > 0 ? (
+        <Stack spacing={1}>{items.map(renderItem)}</Stack>
+      ) : (
+        <Paper sx={{ minHeight: 400, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Typography variant="body2" color="text.secondary">
+            暂无项目
+          </Typography>
+        </Paper>
+      )}
+    </Box>
+  </Stack>
+);

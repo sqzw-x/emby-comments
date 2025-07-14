@@ -19,13 +19,27 @@ import {
 import { useDebounceValue } from "usehooks-ts";
 
 export type LocalStatus = MatchStatus | "pending";
-export const MatchStatusNames: Map<LocalStatus, string> = new Map([
+export const StatusMap: Map<LocalStatus, string> = new Map([
   ["exact", "精确匹配"],
   ["multiple", "候选匹配"],
   ["none", "无匹配"],
   ["matched", "已匹配"],
-  ["pending", "待处理"],
+  ["pending", "操作队列"],
 ]);
+
+export const ActionMap: Map<ItemMapOperation["type"], string> = new Map([
+  ["map", "建立映射"],
+  ["create", "新建项目"],
+  ["unmap", "移除映射"],
+  ["refresh", "刷新数据"],
+]);
+
+const ActionStyles = {
+  map: { bgColor: "#2563eb", color: "#ffffff" },
+  create: { bgColor: "#16a34a", color: "#ffffff" },
+  unmap: { bgColor: "#e04646ff", color: "#ffffff" },
+  refresh: { bgColor: "#f7a518ff", color: "#ffffff" },
+};
 
 export const renderMatchStatusIcon = (status: LocalStatus) => {
   switch (status) {
@@ -47,74 +61,188 @@ export type ExtendedResult = ItemSyncResult & {
   pendingAction?: ItemMapOperation;
 };
 
-interface UnmatchedItemCardProps {
+// 匹配项目显示组件
+interface MatchItemDisplayProps {
+  item: LocalItem;
+  score?: number;
+  onSelect?: (id: number) => void;
+}
+
+function MatchItemDisplay({ item, score, onSelect }: MatchItemDisplayProps) {
+  const isSelected = !!onSelect;
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        p: isSelected ? 2 : 1.5,
+        border: isSelected ? 1 : 0,
+        borderColor: isSelected ? "divider" : "transparent",
+        backgroundColor: isSelected ? "background.paper" : "action.hover",
+        borderRadius: 1,
+        gap: 1,
+        mt: isSelected ? 2 : 0,
+      }}
+    >
+      <Box flex={1} minWidth={0}>
+        <Typography
+          variant="body2"
+          sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+          title={item.title}
+        >
+          {item.title}
+        </Typography>
+        {item.premiereDate && (
+          <Chip
+            label={item.premiereDate.toLocaleDateString("zh-Hans-CN")}
+            size="small"
+            variant="outlined"
+            sx={{ fontSize: "0.75rem", height: 24, flexShrink: 0 }}
+          />
+        )}
+      </Box>
+
+      {onSelect && (
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
+          {score !== undefined && (
+            <Chip
+              label={`${Math.round(score * 100)}%`}
+              size="small"
+              variant="outlined"
+              sx={{ fontSize: "0.75rem", height: 24 }}
+            />
+          )}
+          {
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => onSelect(item.id)}
+              sx={{ fontSize: "0.75rem", whiteSpace: "nowrap" }}
+            >
+              选择
+            </Button>
+          }
+        </Stack>
+      )}
+    </Box>
+  );
+}
+
+// 统一的项目卡片组件
+interface ItemCardProps {
   item: ExtendedResult;
   selected: boolean;
   onToggle: () => void;
-  onSelectBestMatch: () => void;
-  onSelectMatch: (localItem: LocalItem) => void;
-  onCreateNew: () => void;
-  onCustomMap: () => void;
-  onRemovePendingAction: () => void;
+  actions: {
+    onClick: (item: ExtendedResult) => void;
+    label: string;
+    icon: Lucide.LucideIcon;
+    variant?: "outlined" | "contained";
+  }[];
+  onSelectMatch?: (localItem: LocalItem) => void;
+  onSelectBestMatch?: () => void;
 }
 
-export function UnmatchedItemCard({
-  item,
-  selected,
-  onToggle,
-  onSelectBestMatch,
-  onSelectMatch,
-  onCreateNew,
-  onCustomMap,
-  onRemovePendingAction,
-}: UnmatchedItemCardProps) {
-  const hasPendingAction = !!item.pendingAction;
+export function ItemCard({ item, selected, onToggle, actions = [], onSelectMatch }: ItemCardProps) {
+  const hasPendingAction = !!item.pendingAction; // 操作队列
+  const isCreate = item.pendingAction?.type === "create"; // 操作队列-新建
+  const isMatched = item.selected || (item.matches.length > 0 && !hasPendingAction);
+  const selectedMatch = item.selected ?? item.matches.at(0);
+
+  // 计算卡片样式
+  const getCardStyles = () => {
+    if (isMatched && !hasPendingAction) {
+      return {
+        borderColor: "success.main",
+        bgcolor: isCreate ? "primary.50" : "success.50",
+        "&:hover": { bgcolor: isCreate ? "primary.100" : "success.100" },
+      };
+    }
+    return {
+      borderColor: hasPendingAction ? "primary.main" : "divider",
+      backgroundColor: hasPendingAction ? "action.hover" : "background.paper",
+    };
+  };
 
   return (
-    <Card
-      variant="outlined"
-      sx={{
-        borderColor: hasPendingAction ? "primary.main" : "divider",
-        backgroundColor: hasPendingAction ? "action.hover" : "background.paper",
-      }}
-    >
-      <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+    <Card variant="outlined" sx={getCardStyles()}>
+      <CardContent
+        sx={{
+          p: isMatched && !hasPendingAction ? 3 : 2,
+          "&:last-child": { pb: isMatched && !hasPendingAction ? 3 : 2 },
+        }}
+      >
         {/* 主要内容区域 */}
         <Box display="flex" alignItems="flex-start" justifyContent="space-between" mb={1} gap={2}>
-          <Box display="flex" alignItems="flex-start" gap={1.5} flex={1} minWidth={0}>
-            <Checkbox checked={selected} onChange={onToggle} size="small" sx={{ mt: 0.25, flexShrink: 0 }} />
+          <Box
+            display="flex"
+            alignItems="flex-start"
+            gap={isMatched && !hasPendingAction ? 2 : 1.5}
+            flex={1}
+            minWidth={0}
+          >
+            <Checkbox
+              checked={selected}
+              onChange={onToggle}
+              size="small"
+              sx={{ mt: isMatched && !hasPendingAction ? 0.5 : 0.25, flexShrink: 0 }}
+            />
+
             <Box flex={1} minWidth={0}>
               <Stack direction="row" spacing={1} alignItems="center" mb={1} flexWrap="wrap">
                 <Typography
-                  variant="subtitle2"
+                  variant="h6"
+                  component="h3"
                   sx={{
-                    fontWeight: 500,
+                    fontWeight: "medium",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
-                    maxWidth: "200px",
-                    cursor: "help",
+                    maxWidth: "300px",
                   }}
                   title={item.item.title}
                 >
                   {item.item.title}
                 </Typography>
+
                 {item.item.premiereDate && (
                   <Chip
                     label={item.item.premiereDate.toLocaleDateString("zh-Hans-CN")}
                     size="small"
                     variant="outlined"
-                    sx={{ fontSize: "0.75rem", height: 24 }}
+                    color={isMatched && !hasPendingAction ? "default" : undefined}
+                    sx={{ fontSize: "0.75rem", height: 24, flexShrink: 0 }}
                   />
                 )}
-                <Chip label={item.item.type} size="small" variant="outlined" sx={{ fontSize: "0.75rem", height: 24 }} />
-                {hasPendingAction && (
+
+                <Chip
+                  label={item.item.type}
+                  size="small"
+                  variant="outlined"
+                  sx={{ fontSize: "0.75rem", height: 24, flexShrink: 0 }}
+                />
+
+                {item.pendingAction && (
                   <Chip
-                    label={item.pendingAction?.type === "map" ? "待映射" : "待创建"}
+                    label={ActionMap.get(item.pendingAction.type) || "未知操作"}
                     size="small"
-                    color="primary"
-                    sx={{ fontSize: "0.75rem", height: 24 }}
+                    sx={{
+                      fontSize: "0.75rem",
+                      height: 24,
+                      flexShrink: 0,
+                      color: ActionStyles[item.pendingAction.type].color,
+                      bgcolor: ActionStyles[item.pendingAction.type].bgColor,
+                    }}
                   />
+                )}
+
+                {isCreate && !hasPendingAction && (
+                  <Chip label="新建" size="small" color="primary" sx={{ flexShrink: 0 }} />
+                )}
+
+                {isMatched && !hasPendingAction && !isCreate && (
+                  <Chip label="匹配" size="small" color="success" sx={{ flexShrink: 0 }} />
                 )}
               </Stack>
 
@@ -123,11 +251,10 @@ export function UnmatchedItemCard({
                   variant="body2"
                   color="text.secondary"
                   sx={{
-                    mb: 0.5,
+                    mb: isMatched && !hasPendingAction ? 1 : 0.5,
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
-                    cursor: "help",
                   }}
                   title={`原标题: ${item.item.originalTitle}`}
                 >
@@ -138,118 +265,60 @@ export function UnmatchedItemCard({
               {item.item.overview && (
                 <Typography
                   variant="body2"
-                  color="text.secondary"
+                  color={isMatched && !hasPendingAction ? "text.primary" : "text.secondary"}
                   sx={{
                     display: "-webkit-box",
                     WebkitLineClamp: 2,
                     WebkitBoxOrient: "vertical",
                     overflow: "hidden",
-                    cursor: "help",
                   }}
                   title={item.item.overview}
                 >
                   {item.item.overview}
                 </Typography>
               )}
+
+              {/* 显示已选择的匹配项目 */}
+              {!isCreate && selectedMatch && isMatched && !hasPendingAction && (
+                <MatchItemDisplay item={selectedMatch} />
+              )}
             </Box>
           </Box>
 
           {/* 操作按钮区域 */}
-          {hasPendingAction ? (
-            <Button
-              variant="outlined"
-              size="small"
-              onClick={onRemovePendingAction}
-              startIcon={<Lucide.X size={16} />}
-              sx={{ flexShrink: 0 }}
-            >
-              撤销
-            </Button>
-          ) : (
-            <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={onCustomMap}
-                startIcon={<Lucide.ExternalLink size={16} />}
-              >
-                选择
-              </Button>
-              <Button variant="outlined" size="small" onClick={onCreateNew} startIcon={<Lucide.Plus size={16} />}>
-                新建
-              </Button>
-            </Stack>
-          )}
+          <Box display="flex" alignItems="center" gap={1} sx={{ flexShrink: 0 }}>
+            {actions.length > 0 && (
+              <Stack direction="row" spacing={1}>
+                {actions.map((action, index) => (
+                  <Button
+                    key={index}
+                    variant={action.variant || "outlined"}
+                    size="small"
+                    onClick={() => action.onClick(item)}
+                    startIcon={<action.icon size={16} />}
+                  >
+                    {action.label}
+                  </Button>
+                ))}
+              </Stack>
+            )}
+          </Box>
         </Box>
 
         {/* 匹配建议区域 */}
-        {!hasPendingAction && item.matches.length > 0 && (
+        {onSelectMatch && !hasPendingAction && !isMatched && item.matches.length > 0 && (
           <Box mt={2}>
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
               匹配建议:
             </Typography>
             <Stack spacing={1}>
-              {item.matches.slice(0, 5).map((match, index) => (
-                <Box
+              {item.matches.slice(0, 5).map((match) => (
+                <MatchItemDisplay
                   key={match.id}
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    p: 1.5,
-                    backgroundColor: "action.hover",
-                    borderRadius: 1,
-                    gap: 1,
-                  }}
-                >
-                  <Box flex={1} minWidth={0}>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontWeight: 500,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        cursor: "help",
-                      }}
-                      title={match.title}
-                    >
-                      {match.title}
-                    </Typography>
-                    {match.premiereDate && (
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ cursor: "help" }}
-                        title={`年份: ${match.premiereDate.getFullYear()}`}
-                      >
-                        ({match.premiereDate.getFullYear()})
-                      </Typography>
-                    )}
-                  </Box>
-                  <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
-                    <Chip
-                      label={`${Math.round(match.score * 100)}%`}
-                      size="small"
-                      variant="outlined"
-                      sx={{ fontSize: "0.75rem", height: 24 }}
-                    />
-                    <Button
-                      size="small"
-                      variant={index === 0 ? "contained" : "outlined"}
-                      onClick={() => {
-                        if (index === 0) {
-                          onSelectBestMatch();
-                        } else {
-                          onSelectMatch(match);
-                        }
-                      }}
-                      sx={{ fontSize: "0.75rem", whiteSpace: "nowrap" }}
-                    >
-                      {index === 0 ? "最佳匹配" : "选择"}
-                    </Button>
-                  </Stack>
-                </Box>
+                  item={match}
+                  score={match.score}
+                  onSelect={() => onSelectMatch(match)}
+                />
               ))}
               {item.matches.length > 5 && (
                 <Typography variant="caption" color="text.secondary">
@@ -261,7 +330,7 @@ export function UnmatchedItemCard({
         )}
 
         {/* 无匹配建议提示 */}
-        {!hasPendingAction && item.matches.length === 0 && (
+        {!hasPendingAction && item.status === "none" && (
           <Box textAlign="center" py={2}>
             <Typography variant="body2" color="text.secondary" gutterBottom>
               无匹配建议
@@ -283,143 +352,6 @@ export function UnmatchedItemCard({
             {item.pendingAction.type === "create" && <>创建新项目</>}
           </Alert>
         )}
-      </CardContent>
-    </Card>
-  );
-}
-
-interface MatchedItemCardProps {
-  item: ExtendedResult;
-  selected: boolean;
-  onToggle: () => void;
-  onClickAction: () => void;
-  actionIcon: Lucide.LucideIcon;
-}
-
-export function MatchedItemCard({
-  item,
-  selected,
-  onToggle,
-  onClickAction,
-  actionIcon: ActionIcon,
-}: MatchedItemCardProps) {
-  const isCreated = item.pendingAction?.type === "create";
-  const match = item.selected ?? item.matches.at(0);
-
-  return (
-    <Card
-      variant="outlined"
-      sx={{
-        borderColor: "success.main",
-        bgcolor: isCreated ? "primary.50" : "success.50",
-        "&:hover": { bgcolor: isCreated ? "primary.100" : "success.100" },
-      }}
-    >
-      <CardContent sx={{ p: 3 }}>
-        <Box display="flex" alignItems="flex-start" justifyContent="space-between" gap={2}>
-          <Box display="flex" alignItems="flex-start" gap={2} flex={1} minWidth={0}>
-            <Checkbox checked={selected} onChange={onToggle} size="small" sx={{ mt: 0.5, flexShrink: 0 }} />
-
-            <Box flex={1} minWidth={0}>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1, flexWrap: "wrap" }}>
-                <Typography
-                  variant="h6"
-                  component="h3"
-                  sx={{
-                    fontWeight: "medium",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    maxWidth: "300px",
-                    cursor: "help",
-                  }}
-                  title={item.item.title}
-                >
-                  {item.item.title}
-                </Typography>
-                <Chip label={item.item.type} size="small" variant="outlined" sx={{ flexShrink: 0 }} />
-                {item.item.premiereDate && (
-                  <Chip
-                    label={item.item.premiereDate.getFullYear()}
-                    size="small"
-                    variant="outlined"
-                    color="default"
-                    sx={{ flexShrink: 0 }}
-                  />
-                )}
-                {isCreated ? (
-                  <Chip label="新建" size="small" color="primary" sx={{ flexShrink: 0 }} />
-                ) : (
-                  <Chip label="匹配" size="small" color="success" sx={{ flexShrink: 0 }} />
-                )}
-              </Stack>
-
-              {item.item.originalTitle && item.item.originalTitle !== item.item.title && (
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mb: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "help" }}
-                  title={`原标题: ${item.item.originalTitle}`}
-                >
-                  原标题: {item.item.originalTitle}
-                </Typography>
-              )}
-
-              {item.item.overview && (
-                <Typography
-                  variant="body2"
-                  color="text.primary"
-                  sx={{
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                    overflow: "hidden",
-                    cursor: "help",
-                  }}
-                  title={item.item.overview}
-                >
-                  {item.item.overview}
-                </Typography>
-              )}
-
-              {/* 显示匹配的本地项目 */}
-              {!isCreated && match && (
-                <Box
-                  sx={{ mt: 2, p: 2, border: 1, borderColor: "divider", borderRadius: 1, bgcolor: "background.paper" }}
-                >
-                  <Box display="flex" alignItems="center" justifyContent="space-between">
-                    <Box flex={1} minWidth={0}>
-                      <Typography variant="body2" color="success.main" sx={{ fontWeight: "medium", mb: 0.5 }}>
-                        匹配项目:
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "help" }}
-                        title={match.title}
-                      >
-                        {match.title}
-                      </Typography>
-                      {match.originalTitle && match.originalTitle !== match.title && (
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "help" }}
-                          title={`原标题: ${match.originalTitle}`}
-                        >
-                          原标题: {match.originalTitle}
-                        </Typography>
-                      )}
-                    </Box>
-                  </Box>
-                </Box>
-              )}
-            </Box>
-          </Box>
-
-          <IconButton size="small" onClick={onClickAction} color="default" sx={{ flexShrink: 0 }}>
-            <ActionIcon size={16} />
-          </IconButton>
-        </Box>
       </CardContent>
     </Card>
   );
@@ -453,6 +385,13 @@ export function CustomMapDialog({ onClose, item, serverId, onMap }: CustomMapDia
     },
     [serverId]
   );
+
+  // 初始加载可用项目
+  useState(() => {
+    (async () => {
+      await loadAvailableItems();
+    })();
+  });
 
   const handleMap = () => {
     if (selectedLocalItem) {

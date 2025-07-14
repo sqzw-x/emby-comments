@@ -24,11 +24,7 @@ export type ItemMapOperation =
       localItemId: number;
     }
   | {
-      type: "unmap" | "create";
-      embyItemId: number;
-    }
-  | {
-      type: "refresh";
+      type: "unmap" | "create" | "refresh";
       embyItemId: number;
     };
 

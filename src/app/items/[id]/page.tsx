@@ -5,6 +5,7 @@ import { getActiveServer } from "@/lib/actions/server";
 import { dbClient } from "@/lib/db/prisma";
 import Routes from "@/lib/routes";
 import { getAllExternalLinkProviders } from "@/lib/actions/external-link-provider";
+import { getAllTags } from "@/lib/actions/tag";
 
 export interface ItemProps {
   params: Promise<{ id: string }>;
@@ -46,11 +47,23 @@ export default async function ItemPage({ params }: ItemProps) {
     redirect(Routes.settings());
   }
 
+  const tags = await getAllTags();
+  if (!tags.success) {
+    throw new Error(tags.message);
+  }
+
   const item = {
     ...localItem,
     embyItem: localItem.embyItems.length > 0 ? localItem.embyItems[0] : null,
   };
 
   // 将数据传递给客户端组件
-  return <ItemClient item={item} activeServer={activeServer} externalLinkProviders={externalLinkProviders.value} />;
+  return (
+    <ItemClient
+      item={item}
+      activeServer={activeServer}
+      externalLinkProviders={externalLinkProviders.value}
+      allTags={tags.value.map((tag) => tag.name)}
+    />
+  );
 }

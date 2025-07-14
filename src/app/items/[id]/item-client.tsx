@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Chip, TextField } from "@mui/material";
+import { Autocomplete, Button, Chip, TextField } from "@mui/material";
 import { Box, Paper, Typography, IconButton, Container, Link } from "@mui/material";
 import { useToast } from "@/lib/context/toast-context";
 import { useConfirm } from "@/lib/context/confirm-context";
@@ -27,11 +27,12 @@ import { dbStringToArray } from "@/lib/utils/db-convert";
 
 interface ItemClientProps {
   item: Prisma.LocalItemGetPayload<{ include: { tags: true; rating: true } }> & { embyItem: EmbyItem | null };
+  allTags: string[];
   activeServer: EmbyServer;
   externalLinkProviders: ExternalLinkProvider[];
 }
 
-export default function ItemClient({ item, activeServer, externalLinkProviders }: ItemClientProps) {
+export default function ItemClient({ item, activeServer, externalLinkProviders, allTags }: ItemClientProps) {
   const router = useRouter();
   const { showError, showSuccess } = useToast();
   const { confirm, setLoading: setConfirmLoading } = useConfirm();
@@ -471,10 +472,10 @@ export default function ItemClient({ item, activeServer, externalLinkProviders }
                   添加新标签
                 </Typography>
                 <Box sx={{ display: "flex", gap: 1 }}>
-                  <TextField
+                  <Autocomplete
                     value={newTag}
-                    onChange={(e) => setNewTag(e.target.value)}
-                    placeholder="输入标签名称..."
+                    onInputChange={(_, v) => setNewTag(v)}
+                    options={allTags}
                     size="small"
                     sx={{
                       flexGrow: 1,
@@ -487,6 +488,7 @@ export default function ItemClient({ item, activeServer, externalLinkProviders }
                         handleAddTag();
                       }
                     }}
+                    renderInput={(params) => <TextField {...params} placeholder="输入标签名称..." variant="outlined" />}
                   />
                   <Button
                     onClick={handleAddTag}

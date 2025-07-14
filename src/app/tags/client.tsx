@@ -27,13 +27,22 @@ interface TagsClientProps {
 type SortType = "name-asc" | "name-desc" | "count-desc" | "count-asc";
 
 export default function TagsClient({ allTags }: TagsClientProps) {
-  const [searchTerm, setSearchTerm] = useDebounceValue("", 1000);
+  const [searchTermShow, setSearchTermShow] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [minCount, setMinCount] = useDebounceValue<number | "">(2, 1000);
   const [maxCount, setMaxCount] = useDebounceValue<number | "">("", 1000);
   const [showFilters, setShowFilters] = useState(true);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [sortType, setSortType] = useState<SortType>("count-desc");
 
+  // 处理搜索逻辑
+  const handleSearch = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      setSearchTerm(searchTermShow.trim().toLowerCase());
+    },
+    [searchTermShow]
+  );
   // 过滤和排序标签
   const filteredTags = useMemo(() => {
     const filtered = allTags.filter((tag) => {
@@ -139,8 +148,9 @@ export default function TagsClient({ allTags }: TagsClientProps) {
       {/* 搜索头部 */}
       <SearchHeader
         title="标签管理"
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
+        searchTerm={searchTermShow}
+        onSearchChange={setSearchTermShow}
+        onSubmit={handleSearch}
         searchPlaceholder="搜索标签..."
         onToggleFilters={() => setShowFilters(!showFilters)}
       />

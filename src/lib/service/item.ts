@@ -234,6 +234,7 @@ export class ItemService {
             break;
           case "refresh":
             await this.updateLocalItem(op.embyItemId);
+            results.success.push(op.embyItemId);
             break;
           default:
             // @ts-expect-error switch case exhaustive check

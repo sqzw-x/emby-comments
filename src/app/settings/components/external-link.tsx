@@ -83,7 +83,8 @@ export default function ExternalLinkSetting({ providers, onProvidersChange }: Ex
       errors.name = "名称不能为空";
     }
 
-    if (!formData.key.trim()) {
+    formData.key = formData.key.trim().toLowerCase(); // 转为小写以保持一致性
+    if (!formData.key) {
       errors.key = "键不能为空";
     } else if (!/^[a-zA-Z0-9_-]+$/.test(formData.key)) {
       errors.key = "键只能包含字母、数字、下划线和连字符";
@@ -311,7 +312,7 @@ export default function ExternalLinkSetting({ providers, onProvidersChange }: Ex
               value={formData.key}
               onChange={(e) => setFormData({ ...formData, key: e.target.value })}
               error={!!formErrors.key}
-              helperText={formErrors.key || "唯一标识符，只能包含字母、数字、下划线和连字符，如 imdb"}
+              helperText={formErrors.key || "唯一标识符，只能包含字母、数字、下划线和连字符，不区分大小写"}
               fullWidth
               disabled={isLoading}
             />

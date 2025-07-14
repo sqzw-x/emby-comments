@@ -21,9 +21,11 @@ import {
 import { setRating, deleteRating } from "@/lib/actions/rating";
 import { addTagToItem, removeTagFromItem, addTagByGenre, tagExists } from "@/lib/actions/tag";
 import { createComment, deleteComment, updateComment, getCommentsByItemId } from "@/lib/actions/comment";
+import { batchProcessMappings } from "@/lib/actions/server";
 import { EmbyServer, Comment, Tag, ExternalLinkProvider, EmbyItem, Prisma } from "@prisma/client";
 import Routes from "@/lib/routes";
 import { dbStringToArray } from "@/lib/utils/db-convert";
+import { CancelOutlined, Refresh } from "@mui/icons-material";
 
 interface ItemClientProps {
   item: Prisma.LocalItemGetPayload<{ include: { tags: true; rating: true } }> & { embyItem: EmbyItem | null };
@@ -270,6 +272,84 @@ export default function ItemClient({ item, activeServer, externalLinkProviders, 
     setConfirmLoading(false);
   };
 
+  // 处理取消映射操作
+  const handleUnmapItem = async () => {
+    if (!item.embyItem) {
+      showError("该项目未映射到 Emby 项目");
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: "取消映射",
+      message: "确定要取消与 Emby 媒体的关联吗？这不会导致任何数据丢失，可以重新进行同步并添加关联。",
+      confirmText: "取消映射",
+    });
+
+    if (!confirmed) return;
+
+    setLoading(true);
+    setConfirmLoading(true);
+    const result = await batchProcessMappings([
+      {
+        type: "unmap",
+        embyItemId: item.embyItem.id,
+      },
+    ]);
+
+    if (result.success) {
+      if (result.value.success.length > 0) {
+        showSuccess("映射已取消");
+        // 刷新页面或重新获取数据
+        router.refresh();
+      } else {
+        showError(`取消映射失败: ${result.value.failed[0]?.error || "未知错误"}`);
+      }
+    } else {
+      showError(`取消映射失败: ${result.message}`);
+    }
+    setLoading(false);
+    setConfirmLoading(false);
+  };
+
+  // 处理刷新数据操作
+  const handleRefreshItem = async () => {
+    if (!item.embyItem) {
+      showError("该项目未映射到 Emby 项目");
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: "刷新数据",
+      message: "确定要从 Emby 服务器刷新数据吗？这将使用服务器数据覆盖本地数据。标签等自定义数据不会丢失。",
+      confirmText: "刷新",
+    });
+
+    if (!confirmed) return;
+
+    setLoading(true);
+    setConfirmLoading(true);
+    const result = await batchProcessMappings([
+      {
+        type: "refresh",
+        embyItemId: item.embyItem.id,
+      },
+    ]);
+
+    if (result.success) {
+      if (result.value.success.length > 0) {
+        showSuccess("成功刷新数据");
+        // 刷新页面获取最新数据
+        router.refresh();
+      } else {
+        showError(`刷新数据失败: ${result.value.failed[0]?.error || "未知错误"}`);
+      }
+    } else {
+      showError(`刷新数据失败: ${result.message}`);
+    }
+    setLoading(false);
+    setConfirmLoading(false);
+  };
+
   const kv = new Map(externalLinkProviders.map((provider) => [provider.key, provider]));
   let externalIds: Record<string, string> | null = null;
   if (typeof item.externalIds === "object" && item.externalIds !== null) {
@@ -352,7 +432,7 @@ export default function ItemClient({ item, activeServer, externalLinkProviders, 
                   {/* 其它外部链接 */}
                   {externalIds &&
                     Object.entries(externalIds).map(([key, value]) => {
-                      const externalId = kv.get(key);
+                      const externalId = kv.get(key.toLowerCase());
                       if (!externalId) return null;
                       const link = externalId.template.replace("{value}", value);
                       return (
@@ -363,6 +443,37 @@ export default function ItemClient({ item, activeServer, externalLinkProviders, 
                         </Link>
                       );
                     })}
+                </Box>
+              </Box>
+            )}
+
+            {/* 项目管理操作区 */}
+            {item.embyItem && (
+              <Box sx={{ mt: 4 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+                  Emby 同步
+                </Typography>
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                  <Button
+                    variant="outlined"
+                    color="warning"
+                    onClick={handleUnmapItem}
+                    disabled={loading}
+                    sx={{ gap: 1 }}
+                  >
+                    <CancelOutlined style={{ width: 16, height: 16 }} />
+                    取消映射
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    onClick={handleRefreshItem}
+                    disabled={loading}
+                    sx={{ gap: 1 }}
+                  >
+                    <Refresh style={{ width: 16, height: 16 }} />
+                    刷新数据
+                  </Button>
                 </Box>
               </Box>
             )}

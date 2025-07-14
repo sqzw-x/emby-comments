@@ -100,16 +100,6 @@ export const testServerConnection = action(async (url: string, apiKey: string) =
 export const syncServer = action(itemService.syncEmby.bind(itemService));
 
 /**
- * 手动映射项目
- */
-export const mapItem = action(itemService.mapItem.bind(itemService));
-
-/**
- * 取消映射
- */
-export const unmapItem = action(itemService.unmapItem.bind(itemService));
-
-/**
  * 批量操作
  */
 export const batchProcessMappings = action(itemService.batchProcessMappings.bind(itemService));

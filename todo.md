@@ -15,7 +15,7 @@
 - [x] 自动转换某些 emby 标签
 - [x] 管理 emby 项目映射关系
 - [x] 实现 sync unmap 功能 UI
-- [ ] 在详情页添加 unmap/refresh 按钮
+- [x] 在详情页添加 unmap/refresh 按钮
 - [x] 详情页添加 tag 自动补全
 - [ ] 演员展示
 - [ ] (低优先级) 合并 admin 页作为目录页的一种视图

@@ -110,13 +110,13 @@ export function ItemsFilter({
     searchOption.yearFrom || searchOption.yearTo || (searchOption.tagIds && searchOption.tagIds.length > 0);
 
   const handleYearFromKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
+    if (!e.nativeEvent.isComposing && e.key === "Enter") {
       onFilterChange({ yearFrom: localYearFrom });
     }
   };
 
   const handleYearToKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
+    if (!e.nativeEvent.isComposing && e.key === "Enter") {
       onFilterChange({ yearTo: localYearTo });
     }
   };

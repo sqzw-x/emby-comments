@@ -482,7 +482,7 @@ export default function ItemClient({ item, activeServer, externalLinkProviders }
                       "& .MuiOutlinedInput-root": { "&:hover fieldset": { borderColor: "primary.main" } },
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") {
+                      if (!e.nativeEvent.isComposing && e.key === "Enter") {
                         e.preventDefault();
                         handleAddTag();
                       }

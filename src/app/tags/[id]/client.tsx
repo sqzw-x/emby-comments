@@ -140,7 +140,7 @@ export default function TagDetailClient({ tag, activeServer }: TagDetailClientPr
                       value={editingTag.name}
                       onChange={(e) => updateEditingField("name", e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
+                        if (!e.nativeEvent.isComposing && e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
                           handleUpdateTag();
                         }

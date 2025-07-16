@@ -4,6 +4,7 @@ const path = require("path");
 const { execSync } = require("child_process");
 const fs = require("fs");
 const { loadEnvConfig } = require("@next/env");
+const { log } = require("console");
 
 console.log("Starting Emby Comments Server...");
 
@@ -32,7 +33,7 @@ try {
 // 3. 启动服务器
 console.log("Starting server...");
 try {
-  execSync("node server.js", {
+  execSync(`${process.argv[0]} server.js`, {
     stdio: "inherit",
     cwd: __dirname,
   });

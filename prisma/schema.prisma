@@ -39,7 +39,7 @@ model LocalItem {
 
   tags      Tag[]
   embyItems EmbyItem[]
-  comment   Comment?
+  comments  Comment[]
   rating    Rating?
 }
 
@@ -85,7 +85,6 @@ model Comment {
 
   localItem LocalItem @relation(fields: [localItemId], references: [id], onDelete: Cascade)
 
-  @@unique([localItemId])
   @@index([localItemId])
 }
 

@@ -17,6 +17,7 @@
 - [x] 实现 sync unmap 功能 UI
 - [x] 在详情页添加 unmap/refresh 按钮
 - [x] 详情页添加 tag 自动补全
+- [x] 支持一个 LoaclItem 多个评论
 - [ ] 演员展示
 - [ ] (低优先级) 合并 admin 页作为目录页的一种视图
 - [ ] 记录日志

@@ -3,8 +3,8 @@ export { LoadingSkeleton, type LoadingSkeletonProps } from "./loading-skeleton";
 export {
   calculatePagination,
   paginateArray,
-  Pagination,
   type PaginatedData,
+  Pagination,
   type PaginationInfo,
   type PaginationProps,
 } from "./pagination";

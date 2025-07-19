@@ -1,7 +1,7 @@
 "use client";
 
-import React from "react";
 import { Box, Skeleton } from "@mui/material";
+import React from "react";
 
 export interface LoadingSkeletonProps {
   type: "grid" | "list" | "cards";

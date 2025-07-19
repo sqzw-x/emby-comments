@@ -1,8 +1,9 @@
 "use client";
 
-import React from "react";
 import { IconButton, Tooltip } from "@mui/material";
-import { Sun, Moon, Monitor } from "lucide-react";
+import { Monitor, Moon, Sun } from "lucide-react";
+import React from "react";
+
 import { useTheme } from "@/lib/context/theme-context";
 import { ThemeMode } from "@/lib/theme";
 

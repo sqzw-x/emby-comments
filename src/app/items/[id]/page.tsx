@@ -1,11 +1,13 @@
 import { redirect } from "next/navigation";
 import { notFound } from "next/navigation";
-import ItemClient from "./item-client";
+
+import { getAllExternalLinkProviders } from "@/lib/actions/external-link-provider";
 import { getActiveServer } from "@/lib/actions/server";
+import { getAllTags } from "@/lib/actions/tag";
 import { dbClient } from "@/lib/db/prisma";
 import Routes from "@/lib/routes";
-import { getAllExternalLinkProviders } from "@/lib/actions/external-link-provider";
-import { getAllTags } from "@/lib/actions/tag";
+
+import ItemClient from "./item-client";
 
 export interface ItemProps {
   params: Promise<{ id: string }>;

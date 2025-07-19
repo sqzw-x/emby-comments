@@ -1,31 +1,32 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { CancelOutlined, Refresh } from "@mui/icons-material";
 import { Autocomplete, Button, Chip, TextField } from "@mui/material";
-import { Box, Paper, Typography, IconButton, Container, Link } from "@mui/material";
-import { useToast } from "@/lib/context/toast-context";
-import { useConfirm } from "@/lib/context/confirm-context";
+import { Box, Container, IconButton, Link, Paper, Typography } from "@mui/material";
+import { Comment, EmbyItem, EmbyServer, ExternalLinkProvider, Prisma, Tag } from "@prisma/client";
 import {
-  Star,
   Calendar,
+  Edit,
+  ExternalLink,
   Film,
-  Tag as TagIcon,
   MessageSquare,
   Plus,
-  Edit,
-  Trash2,
   Save,
-  ExternalLink,
+  Star,
+  Tag as TagIcon,
+  Trash2,
 } from "lucide-react";
-import { setRating, deleteRating } from "@/lib/actions/rating";
-import { addTagToItem, removeTagFromItem, addTagByGenre, tagExists } from "@/lib/actions/tag";
-import { createComment, deleteComment, updateComment, getCommentsByItemId } from "@/lib/actions/comment";
+import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
+
+import { createComment, deleteComment, getCommentsByItemId, updateComment } from "@/lib/actions/comment";
+import { deleteRating, setRating } from "@/lib/actions/rating";
 import { batchProcessMappings } from "@/lib/actions/server";
-import { EmbyServer, Comment, Tag, ExternalLinkProvider, EmbyItem, Prisma } from "@prisma/client";
+import { addTagByGenre, addTagToItem, removeTagFromItem, tagExists } from "@/lib/actions/tag";
+import { useConfirm } from "@/lib/context/confirm-context";
+import { useToast } from "@/lib/context/toast-context";
 import Routes from "@/lib/routes";
 import { dbStringToArray } from "@/lib/utils/db-convert";
-import { CancelOutlined, Refresh } from "@mui/icons-material";
 
 interface ItemClientProps {
   item: Prisma.LocalItemGetPayload<{ include: { tags: true; rating: true } }> & { embyItem: EmbyItem | null };

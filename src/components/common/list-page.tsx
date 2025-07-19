@@ -1,8 +1,9 @@
 "use client";
 
-import React, { ReactNode } from "react";
-import { LoadingSkeleton } from "@/components/common";
 import { Box, Typography } from "@mui/material";
+import React, { ReactNode } from "react";
+
+import { LoadingSkeleton } from "@/components/common";
 
 // 内容区域组件
 export interface ContentAreaProps {

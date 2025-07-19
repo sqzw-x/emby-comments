@@ -1,16 +1,16 @@
 "use client";
 
-import React from "react";
 import {
-  Pagination as MuiPagination,
   Box,
   FormControl,
   InputLabel,
-  Select,
   MenuItem,
-  Typography,
+  Pagination as MuiPagination,
+  Select,
   Stack,
+  Typography,
 } from "@mui/material";
+import React from "react";
 
 export interface PaginationProps {
   currentPage: number;

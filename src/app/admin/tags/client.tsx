@@ -1,27 +1,28 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
-import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import {
+  Autocomplete,
   Box,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   IconButton,
   Link,
   Stack,
-  Typography,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   TextField,
-  Autocomplete,
+  Typography,
 } from "@mui/material";
+import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import { Delete, ExternalLink, Merge, Tag } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+
 import { batchDeleteTags, batchSetTagGroup, mergeTags } from "@/lib/actions/tag";
-import { useToast } from "@/lib/context/toast-context";
 import { useConfirm } from "@/lib/context/confirm-context";
-import { TagWithCount } from "@/lib/service/tag";
+import { useToast } from "@/lib/context/toast-context";
 import Routes from "@/lib/routes";
+import { TagWithCount } from "@/lib/service/tag";
 
 const tagColumns: GridColDef<TagWithCount>[] = [
   { field: "name", headerName: "名称", width: 200 },

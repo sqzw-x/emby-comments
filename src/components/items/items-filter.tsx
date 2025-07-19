@@ -1,24 +1,25 @@
 "use client";
 
-import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
   Box,
-  Paper,
-  Stack,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Chip,
-  Typography,
   Collapse,
-  TextField,
+  FormControl,
   IconButton,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  Stack,
+  TextField,
+  Typography,
 } from "@mui/material";
 import { ChevronDown, ChevronRight, TagIcon, X } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useLocalStorage } from "usehooks-ts";
+
 import { ItemSearchOptions, SortField, SortOrder } from "@/lib/service/item";
 import { TagWithCount } from "@/lib/service/tag";
-import { useLocalStorage } from "usehooks-ts";
 import { dbStringToSet, setToDbString } from "@/lib/utils/db-convert";
 
 type Query = Omit<ItemSearchOptions, "search">; // 搜索不由筛选组件处理
@@ -61,7 +62,7 @@ export function ItemsFilter({
   const [localYearFrom, setLocalYearFrom] = useState(searchOption.yearFrom ?? null);
   const [localYearTo, setLocalYearTo] = useState(searchOption.yearTo ?? null);
   // 标签分组展开状态管理
-  const [expandedGroups, setExpandedGroups] = useLocalStorage<Set<string>>("items.expandedGroups", new Set(), {
+  const [expandedGroups, setExpandedGroups] = useLocalStorage<Set<string>>("items.filter.expandedGroups", new Set(), {
     deserializer: dbStringToSet,
     serializer: (v) => setToDbString(v) ?? "",
   });

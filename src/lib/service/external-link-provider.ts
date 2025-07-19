@@ -1,5 +1,6 @@
-import { dbClient } from "@/lib/db/prisma";
 import { ExternalLinkProvider, PrismaClient } from "@prisma/client";
+
+import { dbClient } from "@/lib/db/prisma";
 
 export type CreateExternalLinkProviderData = {
   name: string;

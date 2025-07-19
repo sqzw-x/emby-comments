@@ -1,36 +1,38 @@
 "use client";
 
-import React, { useState } from "react";
 import {
+  Alert,
   Box,
-  Typography,
+  Button,
+  Checkbox,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControlLabel,
+  IconButton,
   Paper,
+  Stack,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  IconButton,
-  Button,
   TextField,
-  FormControlLabel,
-  Checkbox,
-  Alert,
-  Chip,
-  Stack,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Typography,
 } from "@mui/material";
-import { Plus, Edit, Trash2, Check, RefreshCw } from "lucide-react";
 import { EmbyServer } from "@prisma/client";
-import { useToast } from "@/lib/context/toast-context";
+import { Check, Edit, Plus, RefreshCw, Trash2 } from "lucide-react";
+import React, { useState } from "react";
+
+import { createServer, deleteServer, testServerConnection, updateServer } from "@/lib/actions/server";
 import { useConfirm } from "@/lib/context/confirm-context";
 import { useServerContext } from "@/lib/context/server-context";
+import { useToast } from "@/lib/context/toast-context";
+
 import ServerSync from "./sync";
-import { testServerConnection, createServer, deleteServer, updateServer } from "@/lib/actions/server";
 
 interface EmbyServerSettingProps {
   servers: EmbyServer[];

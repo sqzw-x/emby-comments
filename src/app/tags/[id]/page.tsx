@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
 import { notFound } from "next/navigation";
+
 import { getActiveServer } from "@/lib/actions/server";
 import { getTagWithItems } from "@/lib/actions/tag";
 import Routes from "@/lib/routes";
+
 import TagDetailClient from "./client";
 
 export interface TagDetailProps {

@@ -1,10 +1,11 @@
 "use client";
-import React from "react";
-import { Box, Typography, Chip } from "@mui/material";
+import { Box, Chip, Typography } from "@mui/material";
 import { Tag as TagIcon } from "lucide-react";
-import { TagWithCount } from "@/lib/service/tag";
-import Routes from "@/lib/routes";
 import { useRouter } from "next/navigation";
+import React from "react";
+
+import Routes from "@/lib/routes";
+import { TagWithCount } from "@/lib/service/tag";
 
 interface TagItemProps {
   tag: TagWithCount;

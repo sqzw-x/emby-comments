@@ -1,7 +1,9 @@
-import { getAllLocalItems } from "@/lib/actions/item";
-import { ItemsAdmin } from "./client";
 import { unstable_noStore } from "next/cache";
+
+import { getAllLocalItems } from "@/lib/actions/item";
 import { getAllTags } from "@/lib/actions/tag";
+
+import { ItemsAdmin } from "./client";
 
 export default async function ItemsAdminPage() {
   unstable_noStore();

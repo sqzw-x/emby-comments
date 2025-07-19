@@ -1,9 +1,10 @@
 "use client";
 
-import React from "react";
-import Link from "next/link";
 import { Container, Typography } from "@mui/material";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v14-appRouter";
+import Link from "next/link";
+import React from "react";
+
 import MuiThemeProvider, { ThemeContextProvider } from "@/lib/context/theme-context";
 import Routes from "@/lib/routes";
 

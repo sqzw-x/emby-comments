@@ -1,18 +1,20 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { MediaCard, ItemForCard } from "@/components/media/media-card";
-import { SearchHeader, ContentArea, Pagination, paginateArray } from "@/components/common";
-import { ItemsFilter } from "@/components/items/items-filter";
 import { Box, Stack } from "@mui/material";
 import { EmbyServer } from "@prisma/client";
-import { TagWithCount } from "@/lib/service/tag";
+import { useRouter } from "next/navigation";
+import React, { useCallback, useMemo, useState } from "react";
+import { useLocalStorage } from "usehooks-ts";
+
+import { ContentArea, paginateArray, Pagination, SearchHeader } from "@/components/common";
+import { ItemsFilter } from "@/components/items/items-filter";
+import { ItemForCard, MediaCard } from "@/components/media/media-card";
+import { useConfig } from "@/lib/context/config-context";
 import Routes from "@/lib/routes";
 import { ItemSearchOptions } from "@/lib/service/item";
+import { TagWithCount } from "@/lib/service/tag";
 import { toSearchParams } from "@/lib/utils/params";
 import { getNew, NullablePartial } from "@/lib/utils/types";
-import { useConfig } from "@/lib/context/config-context";
 
 interface MoviesClientProps {
   items: ItemForCard[];
@@ -25,9 +27,9 @@ export default function Items({ items, searchOptions, tagOptions, activeServer }
   const router = useRouter();
   const { config, setConfigKey } = useConfig();
   const [searchOption, setSearchOption] = useState(searchOptions);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useLocalStorage("items.showFilters", false);
   const [pageSize, setPageSize] = useState(config["items.pageSize"]);
-  const [curPage, setCurPage] = useState(1);
+  const [curPage, setCurPage] = useLocalStorage("items.curPage", 1);
 
   // embyCreatedAt 排序由前端进行
   const sortedItems = useMemo(() => {
@@ -65,9 +67,10 @@ export default function Items({ items, searchOptions, tagOptions, activeServer }
       if (sortBy) setConfigKey("items.sortBy", sortBy);
       if (sortOrder) setConfigKey("items.sortOrder", sortOrder);
       setSearchOption({ search, yearFrom, yearTo, tagIds, sortBy, sortOrder });
+      setCurPage(1); // 重置到第一页
       router.push(Routes.items(toSearchParams({ search, yearFrom, yearTo, tagIds, sortBy, sortOrder })));
     },
-    [searchOption, setConfigKey, router]
+    [searchOption, setConfigKey, router, setCurPage]
   );
 
   // 处理搜索逻辑

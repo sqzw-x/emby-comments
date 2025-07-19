@@ -1,9 +1,10 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { EmbyServer } from "@prisma/client";
-import { updateServer } from "../actions/server";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useLocalStorage } from "usehooks-ts";
+
+import { updateServer } from "../actions/server";
 
 type ServerContextType = {
   activeServer: EmbyServer | null;

@@ -1,12 +1,14 @@
-import React, { ReactNode } from "react";
 import "./globals.css";
+
 import { Inter } from "next/font/google";
-import { Providers } from "@/components/layouts/providers";
-import { getActiveServer } from "@/lib/actions/server";
-import { getConfig } from "@/lib/actions/config";
-import { DEFAULT_CONFIG } from "@/lib/service/config";
-import { NoServerFallback } from "@/components/layouts/no-server-fallback";
+import React, { ReactNode } from "react";
+
 import { MainContent } from "@/components/layouts/main-content";
+import { NoServerFallback } from "@/components/layouts/no-server-fallback";
+import { Providers } from "@/components/layouts/providers";
+import { getConfig } from "@/lib/actions/config";
+import { getActiveServer } from "@/lib/actions/server";
+import { DEFAULT_CONFIG } from "@/lib/service/config";
 
 const inter = Inter({
   subsets: ["latin"],

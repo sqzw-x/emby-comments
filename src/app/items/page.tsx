@@ -1,13 +1,15 @@
+import { unstable_noStore } from "next/cache";
 import { redirect } from "next/navigation";
-import Items from "./client";
-import Routes from "@/lib/routes";
-import { getActiveServer } from "@/lib/actions/server";
+
+import { getConfig } from "@/lib/actions/config";
 import { filterLocalItems } from "@/lib/actions/item";
+import { getActiveServer } from "@/lib/actions/server";
 import { getTagsByServerId } from "@/lib/actions/tag";
+import Routes from "@/lib/routes";
 import { ItemSearchOptions } from "@/lib/service/item";
 import { parseSearchParams, SafeSearchParam } from "@/lib/utils/params";
-import { unstable_noStore } from "next/cache";
-import { getConfig } from "@/lib/actions/config";
+
+import Items from "./client";
 
 export interface ItemsProps {
   searchParams: Promise<SafeSearchParam<ItemSearchOptions>>;

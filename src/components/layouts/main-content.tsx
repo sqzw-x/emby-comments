@@ -1,8 +1,8 @@
 "use client";
 
-import React, { ReactNode } from "react";
-import Link from "next/link";
 import {
+  Box,
+  Container,
   Drawer,
   List,
   ListItem,
@@ -10,11 +10,13 @@ import {
   ListItemIcon,
   ListItemText,
   Typography,
-  Box,
-  Container,
 } from "@mui/material";
-import { Home, Settings, Film, Tag, MessageSquare, Wrench, Tags } from "lucide-react";
+import { Film, Home, MessageSquare, Settings, Tag, Tags, Wrench } from "lucide-react";
+import Link from "next/link";
+import React, { ReactNode } from "react";
+
 import Routes from "@/lib/routes";
+
 import ThemeSwitcher from "./theme-switcher";
 
 interface MainContentProps {

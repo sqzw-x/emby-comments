@@ -1,9 +1,11 @@
+import { unstable_noStore } from "next/cache";
 import { redirect } from "next/navigation";
-import TagsClient from "./client";
+
 import { getActiveServer } from "@/lib/actions/server";
 import { getTagsByServerId } from "@/lib/actions/tag";
 import Routes from "@/lib/routes";
-import { unstable_noStore } from "next/cache";
+
+import TagsClient from "./client";
 
 export default async function TagsPage() {
   unstable_noStore();

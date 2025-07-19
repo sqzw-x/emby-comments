@@ -1,37 +1,38 @@
 "use client";
 
-import React, { useState } from "react";
 import {
+  Alert,
   Box,
-  Typography,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControlLabel,
+  IconButton,
   Paper,
+  Stack,
+  Switch,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  IconButton,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   TextField,
-  Switch,
-  FormControlLabel,
-  Stack,
-  Alert,
+  Typography,
 } from "@mui/material";
-import { Edit, Trash2, Plus, GripVertical, ExternalLink } from "lucide-react";
-import { useToast } from "@/lib/context/toast-context";
-import { useConfirm } from "@/lib/context/confirm-context";
+import { ExternalLinkProvider } from "@prisma/client";
+import { Edit, ExternalLink, GripVertical, Plus, Trash2 } from "lucide-react";
+import React, { useState } from "react";
+
 import {
   createExternalLinkProvider,
-  updateExternalLinkProvider,
   deleteExternalLinkProvider,
+  updateExternalLinkProvider,
 } from "@/lib/actions/external-link-provider";
-import { ExternalLinkProvider } from "@prisma/client";
+import { useConfirm } from "@/lib/context/confirm-context";
+import { useToast } from "@/lib/context/toast-context";
 
 interface ExternalLinkSettingProps {
   providers: ExternalLinkProvider[];

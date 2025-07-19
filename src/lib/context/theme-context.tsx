@@ -1,9 +1,10 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { PaletteMode, ThemeProvider } from "@mui/material/styles";
-import { ThemeMode, createAppTheme } from "@/lib/theme";
 import CssBaseline from "@mui/material/CssBaseline";
+import { PaletteMode, ThemeProvider } from "@mui/material/styles";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+
+import { createAppTheme, ThemeMode } from "@/lib/theme";
 
 interface ThemeContextType {
   mode: ThemeMode;

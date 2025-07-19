@@ -1,9 +1,9 @@
 "use client";
 
-import React, { ReactNode } from "react";
-import { Box, Typography, TextField, InputAdornment, Stack, Paper } from "@mui/material";
+import { Box, InputAdornment, Paper, Stack, TextField, Typography } from "@mui/material";
 import { Button } from "@mui/material";
 import { Search, SlidersHorizontal } from "lucide-react";
+import React, { ReactNode } from "react";
 
 export interface SearchHeaderProps {
   // 基础配置

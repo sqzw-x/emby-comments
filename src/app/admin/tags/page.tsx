@@ -1,6 +1,8 @@
-import { getAllTags } from "@/lib/actions/tag";
-import { TagsAdmin } from "./client";
 import { unstable_noStore } from "next/cache";
+
+import { getAllTags } from "@/lib/actions/tag";
+
+import { TagsAdmin } from "./client";
 
 export default async function TagsAdminPage() {
   unstable_noStore();

@@ -1,8 +1,9 @@
-import Link from "next/link";
-import { Typography, Card, CardContent, Box, Stack, CardActionArea, Button } from "@mui/material";
-import { Film, Tag, MessageSquare, Settings, Wrench, Tags } from "lucide-react";
-import Routes from "@/lib/routes";
+import { Box, Button, Card, CardActionArea, CardContent, Stack, Typography } from "@mui/material";
+import { Film, MessageSquare, Settings, Tag, Tags, Wrench } from "lucide-react";
 import { Metadata } from "next";
+import Link from "next/link";
+
+import Routes from "@/lib/routes";
 
 export const metadata: Metadata = {
   title: "Emby Comments - 自定义评论与标签系统",

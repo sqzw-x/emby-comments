@@ -1,13 +1,14 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback } from "react";
-import { Config, ConfigKey, DEFAULT_CONFIG, mergeConfig } from "../service/config";
+import React, { createContext, useCallback, useContext, useState } from "react";
+import { useLocalStorage } from "usehooks-ts";
+
 import {
-  setConfig as setConfigAction,
   deleteConfigKey as deleteConfigKeyAction,
   resetConfig as resetConfigAction,
+  setConfig as setConfigAction,
 } from "../actions/config";
-import { useLocalStorage } from "usehooks-ts";
+import { Config, ConfigKey, DEFAULT_CONFIG, mergeConfig } from "../service/config";
 
 type ConfigContextType = {
   config: Config;

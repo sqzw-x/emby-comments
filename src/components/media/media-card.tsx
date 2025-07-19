@@ -1,8 +1,9 @@
-import React from "react";
-import Link from "next/link";
-import { Card, CardMedia, CardContent, Typography, Box, Stack, Chip, Tooltip } from "@mui/material";
-import { Star } from "lucide-react";
+import { Box, Card, CardContent, CardMedia, Chip, Stack, Tooltip, Typography } from "@mui/material";
 import { EmbyItem, EmbyServer, LocalItem } from "@prisma/client";
+import { Star } from "lucide-react";
+import Link from "next/link";
+import React from "react";
+
 import Routes from "@/lib/routes";
 
 export interface ItemForCard extends LocalItem {

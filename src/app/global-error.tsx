@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
-import { Button, Container, Typography, Box } from "@mui/material";
 import { ErrorOutline } from "@mui/icons-material";
+import { Box, Button, Container, Typography } from "@mui/material";
+import { useEffect } from "react";
 
 export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {

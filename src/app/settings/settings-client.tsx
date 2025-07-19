@@ -1,13 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
-import EmbyServerSetting from "./components/emby-server";
-import ExternalLinkSetting from "./components/external-link";
+import { Box, Stack, Tab, Tabs, Typography } from "@mui/material";
 import { EmbyServer, ExternalLinkProvider } from "@prisma/client";
+import React, { useState } from "react";
+
 import { getAllExternalLinkProviders } from "@/lib/actions/external-link-provider";
 import { getAllServers } from "@/lib/actions/server";
 import { useToast } from "@/lib/context/toast-context";
-import { Box, Stack, Tabs, Tab, Typography } from "@mui/material";
+
+import EmbyServerSetting from "./components/emby-server";
+import ExternalLinkSetting from "./components/external-link";
 
 interface SettingsClientProps {
   initialServers: EmbyServer[];

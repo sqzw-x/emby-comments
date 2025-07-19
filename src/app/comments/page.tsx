@@ -1,6 +1,8 @@
-import { getAllComments } from "@/lib/actions/comment";
-import CommentsClient from "./comments-client";
 import { unstable_noStore } from "next/cache";
+
+import { getAllComments } from "@/lib/actions/comment";
+
+import CommentsClient from "./comments-client";
 
 export default async function CommentsPage() {
   unstable_noStore();

@@ -1,16 +1,17 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { SearchHeader, ContentArea, Pagination, paginateArray } from "@/components/common";
-import { MediaCard } from "@/components/media/media-card";
-import Routes from "@/lib/routes";
-import { Box, Typography, Paper, Chip, IconButton, Stack, TextField } from "@mui/material";
-import { ArrowLeft, Edit, Trash2, Tag as TagIcon, X, Check } from "lucide-react";
+import { Box, Chip, IconButton, Paper, Stack, TextField, Typography } from "@mui/material";
 import { EmbyServer, Prisma } from "@prisma/client";
+import { ArrowLeft, Check, Edit, Tag as TagIcon, Trash2, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import React, { useMemo, useState } from "react";
+
+import { ContentArea, paginateArray, Pagination, SearchHeader } from "@/components/common";
+import { MediaCard } from "@/components/media/media-card";
 import { deleteTag, updateTag } from "@/lib/actions/tag";
 import { useConfirm } from "@/lib/context/confirm-context";
 import { useToast } from "@/lib/context/toast-context";
+import Routes from "@/lib/routes";
 
 interface TagDetailClientProps {
   tag: Prisma.TagGetPayload<{

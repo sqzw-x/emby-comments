@@ -1,25 +1,27 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
-import { SearchHeader, ContentArea } from "@/components/common";
-import { Tag as TagIcon, ChevronDown, ChevronRight } from "lucide-react";
 import {
   Box,
-  Stack,
-  Typography,
-  Paper,
-  TextField,
   Collapse,
-  IconButton,
   FormControl,
+  IconButton,
   InputLabel,
-  Select,
   MenuItem,
+  Paper,
+  Select,
+  Stack,
+  TextField,
+  Typography,
 } from "@mui/material";
-import { TagWithCount } from "@/lib/service/tag";
-import TagItem from "./components/tag-item";
+import { ChevronDown, ChevronRight, Tag as TagIcon } from "lucide-react";
+import React, { useCallback, useMemo, useState } from "react";
 import { useLocalStorage } from "usehooks-ts";
+
+import { ContentArea, SearchHeader } from "@/components/common";
+import { TagWithCount } from "@/lib/service/tag";
 import { dbStringToSet, setToDbString } from "@/lib/utils/db-convert";
+
+import TagItem from "./components/tag-item";
 
 interface TagsClientProps {
   allTags: TagWithCount[];
@@ -44,7 +46,7 @@ export default function TagsClient({ allTags }: TagsClientProps) {
     deserializer: dbStringToSet,
     serializer: (v) => setToDbString(v) ?? "",
   });
-  const [sortType, setSortType] = useState<SortType>("count-desc");
+  const [sortType, setSortType] = useLocalStorage<SortType>("tags.sortType", "count-desc");
 
   // 处理搜索逻辑
   const handleSearch = useCallback(
@@ -128,24 +130,6 @@ export default function TagsClient({ allTags }: TagsClientProps) {
     };
   }, [allTags, filteredTags, minCount, maxCount]);
 
-  const handleMinCountChange = useCallback(
-    (value: string) => {
-      setMinCount(value === "" ? "" : Number(value));
-    },
-    [setMinCount]
-  );
-
-  const handleMaxCountChange = useCallback(
-    (value: string) => {
-      setMaxCount(value === "" ? "" : Number(value));
-    },
-    [setMaxCount]
-  );
-
-  const handleSortChange = useCallback((value: SortType) => {
-    setSortType(value);
-  }, []);
-
   return (
     <>
       {/* 搜索头部 */}
@@ -167,7 +151,7 @@ export default function TagsClient({ allTags }: TagsClientProps) {
                 label="至少包含"
                 type="number"
                 value={minCount}
-                onChange={(e) => handleMinCountChange(e.target.value)}
+                onChange={(e) => setMinCount(e.target.value === "" ? "" : Number(e.target.value))}
                 size="small"
                 sx={{ minWidth: 150 }}
                 inputProps={{ min: 0 }}
@@ -179,7 +163,7 @@ export default function TagsClient({ allTags }: TagsClientProps) {
                 label="至多包含"
                 type="number"
                 value={maxCount}
-                onChange={(e) => handleMaxCountChange(e.target.value)}
+                onChange={(e) => setMaxCount(e.target.value === "" ? "" : Number(e.target.value))}
                 size="small"
                 sx={{ minWidth: 150 }}
                 inputProps={{ min: 0 }}
@@ -189,7 +173,7 @@ export default function TagsClient({ allTags }: TagsClientProps) {
                 <InputLabel>排序方式</InputLabel>
                 <Select
                   value={sortType}
-                  onChange={(e) => handleSortChange(e.target.value as SortType)}
+                  onChange={(e) => setSortType(e.target.value as SortType)}
                   label="排序方式"
                   MenuProps={{ disableScrollLock: true }}
                 >

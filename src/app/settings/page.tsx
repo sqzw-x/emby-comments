@@ -1,7 +1,9 @@
-import SettingsClient from "./settings-client";
-import { getAllServers } from "@/lib/actions/server";
-import { getAllExternalLinkProviders } from "@/lib/actions/external-link-provider";
 import { unstable_noStore } from "next/cache";
+
+import { getAllExternalLinkProviders } from "@/lib/actions/external-link-provider";
+import { getAllServers } from "@/lib/actions/server";
+
+import SettingsClient from "./settings-client";
 
 export default async function SettingsPage() {
   unstable_noStore();

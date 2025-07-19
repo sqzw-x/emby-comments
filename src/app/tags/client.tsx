@@ -18,7 +18,8 @@ import {
 } from "@mui/material";
 import { TagWithCount } from "@/lib/service/tag";
 import TagItem from "./components/tag-item";
-import { useDebounceValue } from "usehooks-ts";
+import { useLocalStorage } from "usehooks-ts";
+import { dbStringToSet, setToDbString } from "@/lib/utils/db-convert";
 
 interface TagsClientProps {
   allTags: TagWithCount[];
@@ -29,10 +30,20 @@ type SortType = "name-asc" | "name-desc" | "count-desc" | "count-asc";
 export default function TagsClient({ allTags }: TagsClientProps) {
   const [searchTermShow, setSearchTermShow] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [minCount, setMinCount] = useDebounceValue<number | "">(2, 1000);
-  const [maxCount, setMaxCount] = useDebounceValue<number | "">("", 1000);
+  const numberDeserializer = (value: string): number | "" => (value === "" ? "" : Number(value));
+  const [minCount, setMinCount] = useLocalStorage<number | "">("tags.minCount", 0, {
+    deserializer: numberDeserializer,
+    serializer: (v) => v.toString(),
+  });
+  const [maxCount, setMaxCount] = useLocalStorage<number | "">("tags.maxCount", "", {
+    deserializer: numberDeserializer,
+    serializer: (v) => v.toString(),
+  });
   const [showFilters, setShowFilters] = useState(true);
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [expandedGroups, setExpandedGroups] = useLocalStorage<Set<string>>("tags.expandedGroups", new Set(), {
+    deserializer: dbStringToSet,
+    serializer: (v) => setToDbString(v) ?? "",
+  });
   const [sortType, setSortType] = useState<SortType>("count-desc");
 
   // 处理搜索逻辑
@@ -86,28 +97,20 @@ export default function TagsClient({ allTags }: TagsClientProps) {
     return groups;
   }, [filteredTags]);
 
-  // 初始化展开状态：默认折叠包含100个以上标签的分组
-  useMemo(() => {
-    const newExpandedGroups = new Set<string>();
-    Object.entries(groupedTags).forEach(([groupName, tags]) => {
-      if (tags.length < 100) {
-        newExpandedGroups.add(groupName);
-      }
-    });
-    setExpandedGroups(newExpandedGroups);
-  }, [groupedTags]);
-
-  const toggleGroupExpanded = useCallback((groupName: string) => {
-    setExpandedGroups((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(groupName)) {
-        newSet.delete(groupName);
-      } else {
-        newSet.add(groupName);
-      }
-      return newSet;
-    });
-  }, []);
+  const toggleGroupExpanded = useCallback(
+    (groupName: string) => {
+      setExpandedGroups((prev) => {
+        const newSet = new Set(prev);
+        if (newSet.has(groupName)) {
+          newSet.delete(groupName);
+        } else {
+          newSet.add(groupName);
+        }
+        return newSet;
+      });
+    },
+    [setExpandedGroups]
+  );
 
   const stats = useMemo(() => {
     const totalTags = allTags.length;

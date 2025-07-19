@@ -9,7 +9,7 @@
  * @returns 字符串形式的数组数据
  */
 export function arrayToDbString<T>(array?: T[] | null): string | null {
-  if (!array || array.length === 0) {
+  if (!array) {
     return null;
   }
   return JSON.stringify(array);
@@ -28,7 +28,8 @@ export function dbStringToArray<T = string>(dbString: string | null): T[] {
   try {
     const parsed = JSON.parse(dbString);
     if (!Array.isArray(parsed)) {
-      throw new Error("Parsed data is not an array");
+      console.warn("Parsed data is not an array:", parsed);
+      return [];
     }
     return parsed;
   } catch (error) {
@@ -43,7 +44,7 @@ export function dbStringToArray<T = string>(dbString: string | null): T[] {
  * @returns 字符串形式的Map数据
  */
 export function mapToDbString<K = string, V = string>(map?: Map<K, V> | null): string | null {
-  if (!map || !(map instanceof Map) || map.size === 0) {
+  if (!map || !(map instanceof Map)) {
     return null;
   }
   // 将Map转换为数组形式存储
@@ -64,7 +65,8 @@ export function dbStringToMap<K = string, V = string>(dbString: string | null): 
   try {
     const parsed = JSON.parse(dbString);
     if (!Array.isArray(parsed)) {
-      throw new Error("Parsed data is not an array");
+      console.warn("Parsed data is not an array:", parsed);
+      return new Map();
     }
     return new Map(parsed);
   } catch (error) {
@@ -79,7 +81,7 @@ export function dbStringToMap<K = string, V = string>(dbString: string | null): 
  * @returns 字符串形式的对象数据
  */
 export function objectToDbString<T extends Record<string, unknown>>(obj?: T | null): string | null {
-  if (!obj || typeof obj !== "object" || Array.isArray(obj)) {
+  if (!obj || typeof obj !== "object") {
     return null;
   }
   // 检查对象是否为空对象
@@ -102,7 +104,8 @@ export function dbStringToObject<T extends Record<string, unknown>>(dbString: st
   try {
     const parsed = JSON.parse(dbString);
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-      throw new Error("Parsed data is not a plain object");
+      console.warn("Parsed data is not a plain object:", parsed);
+      return null;
     }
     return parsed;
   } catch (error) {
@@ -163,7 +166,7 @@ export function dbStringToJsonWithValidation<T>(
     if (validator(parsed)) {
       return parsed;
     } else {
-      console.warn("Data validation failed for database string");
+      console.warn("Data validation failed for database string:", parsed);
       return fallback;
     }
   } catch (error) {
@@ -178,7 +181,7 @@ export function dbStringToJsonWithValidation<T>(
  * @returns 字符串形式的Set数据
  */
 export function setToDbString<T = string>(set?: Set<T> | null): string | null {
-  if (!set || !(set instanceof Set) || set.size === 0) {
+  if (!set || !(set instanceof Set)) {
     return null;
   }
   // 将Set转换为数组形式存储
@@ -199,7 +202,8 @@ export function dbStringToSet<T = string>(dbString: string | null): Set<T> {
   try {
     const parsed = JSON.parse(dbString);
     if (!Array.isArray(parsed)) {
-      throw new Error("Parsed data is not an array");
+      console.warn("Parsed data is not an array:", parsed);
+      return new Set();
     }
     return new Set(parsed);
   } catch (error) {

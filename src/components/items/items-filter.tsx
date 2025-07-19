@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
   Box,
   Paper,
@@ -18,6 +18,8 @@ import {
 import { ChevronDown, ChevronRight, TagIcon, X } from "lucide-react";
 import { ItemSearchOptions, SortField, SortOrder } from "@/lib/service/item";
 import { TagWithCount } from "@/lib/service/tag";
+import { useLocalStorage } from "usehooks-ts";
+import { dbStringToSet, setToDbString } from "@/lib/utils/db-convert";
 
 type Query = Omit<ItemSearchOptions, "search">; // 搜索不由筛选组件处理
 export type ItemsFilterProps = {
@@ -59,7 +61,10 @@ export function ItemsFilter({
   const [localYearFrom, setLocalYearFrom] = useState(searchOption.yearFrom ?? null);
   const [localYearTo, setLocalYearTo] = useState(searchOption.yearTo ?? null);
   // 标签分组展开状态管理
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [expandedGroups, setExpandedGroups] = useLocalStorage<Set<string>>("items.expandedGroups", new Set(), {
+    deserializer: dbStringToSet,
+    serializer: (v) => setToDbString(v) ?? "",
+  });
 
   // 按组分组标签
   const groupedTags = useMemo(() => {
@@ -74,35 +79,27 @@ export function ItemsFilter({
     return groups;
   }, [tagOptions]);
 
-  // 初始化展开状态：默认折叠包含20个以上标签的分组
-  useMemo(() => {
-    const newExpandedGroups = new Set<string>();
-    Object.entries(groupedTags).forEach(([groupName, tags]) => {
-      if (tags.length < 20) {
-        newExpandedGroups.add(groupName);
-      }
-    });
-    setExpandedGroups(newExpandedGroups);
-  }, [groupedTags]);
-
-  const toggleGroupExpanded = useCallback((groupName: string) => {
-    setExpandedGroups((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(groupName)) {
-        newSet.delete(groupName);
-      } else {
-        newSet.add(groupName);
-      }
-      return newSet;
-    });
-  }, []);
+  const toggleGroupExpanded = useCallback(
+    (groupName: string) => {
+      setExpandedGroups((prev) => {
+        const newSet = new Set(prev);
+        if (newSet.has(groupName)) {
+          newSet.delete(groupName);
+        } else {
+          newSet.add(groupName);
+        }
+        return newSet;
+      });
+    },
+    [setExpandedGroups]
+  );
 
   // 同步外部状态到本地状态
-  React.useEffect(() => {
+  useEffect(() => {
     setLocalYearFrom(searchOption.yearFrom ?? null);
   }, [searchOption.yearFrom]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     setLocalYearTo(searchOption.yearTo ?? null);
   }, [searchOption.yearTo]);
 

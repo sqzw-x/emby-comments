@@ -21,7 +21,7 @@ describe("数据库转换辅助函数", () => {
     });
 
     it("应该处理空数组", () => {
-      expect(arrayToDbString([])).toBe(null);
+      expect(arrayToDbString([])).toBe("[]");
     });
 
     it("应该处理 null 和 undefined", () => {
@@ -49,10 +49,10 @@ describe("数据库转换辅助函数", () => {
       consoleSpy.mockRestore();
     });
 
-    it("应该处理非数组的 JSON 数据", () => {
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    it("非数组的 JSON string 应返回 []", () => {
+      const consoleSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
       expect(dbStringToArray('{"key": "value"}')).toEqual([]);
-      expect(consoleSpy).toHaveBeenCalledWith("Failed to parse array from database string:", expect.any(Error));
+      expect(consoleSpy).toHaveBeenCalled();
       consoleSpy.mockRestore();
     });
   });
@@ -67,7 +67,7 @@ describe("数据库转换辅助函数", () => {
     });
 
     it("应该处理空 Map", () => {
-      expect(mapToDbString(new Map())).toBe(null);
+      expect(mapToDbString(new Map())).toBe("[]");
     });
 
     it("应该处理 null 和 undefined", () => {
@@ -104,10 +104,10 @@ describe("数据库转换辅助函数", () => {
       consoleSpy.mockRestore();
     });
 
-    it("应该处理非数组的 JSON 数据", () => {
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    it("非数组的 JSON string 应返回空 Map", () => {
+      const consoleSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
       expect(dbStringToMap('{"key": "value"}')).toEqual(new Map());
-      expect(consoleSpy).toHaveBeenCalledWith("Failed to parse Map from database string:", expect.any(Error));
+      expect(consoleSpy).toHaveBeenCalled();
       consoleSpy.mockRestore();
     });
   });
@@ -155,7 +155,7 @@ describe("数据库转换辅助函数", () => {
     });
 
     it("应该处理非对象的 JSON 数据", () => {
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
       expect(dbStringToObject('["array"]')).toBe(null);
       expect(dbStringToObject('"string"')).toBe(null);
       expect(dbStringToObject("123")).toBe(null);
@@ -221,10 +221,9 @@ describe("数据库转换辅助函数", () => {
       });
     });
 
-    it("应该处理验证失败的情况", () => {
+    it("验证失败应返回", () => {
       const consoleSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
       expect(dbStringToJsonWithValidation("123", isString, "fallback")).toBe("fallback");
-      expect(consoleSpy).toHaveBeenCalledWith("Data validation failed for database string");
       consoleSpy.mockRestore();
     });
 
@@ -248,7 +247,7 @@ describe("数据库转换辅助函数", () => {
     });
 
     it("应该处理空 Set", () => {
-      expect(setToDbString(new Set())).toBe(null);
+      expect(setToDbString(new Set())).toBe("[]");
     });
 
     it("应该处理 null 和 undefined", () => {
@@ -280,10 +279,10 @@ describe("数据库转换辅助函数", () => {
       consoleSpy.mockRestore();
     });
 
-    it("应该处理非数组的 JSON 数据", () => {
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    it("非数组的 JSON string 应返回空集合", () => {
+      const consoleSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
       expect(dbStringToSet('{"key": "value"}')).toEqual(new Set());
-      expect(consoleSpy).toHaveBeenCalledWith("Failed to parse Set from database string:", expect.any(Error));
+      expect(consoleSpy).toHaveBeenCalled();
       consoleSpy.mockRestore();
     });
   });

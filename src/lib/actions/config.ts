@@ -1,6 +1,11 @@
 "use server";
 
-import { deleteConfigKeyCached, getConfigCached, resetConfigCached, setConfigCached } from "../cache/config-cache";
+import {
+	deleteConfigKeyCached,
+	getConfigCached,
+	resetConfigCached,
+	setConfigCached,
+} from "../cache/config-cache";
 import { action } from "./utils";
 
 /**

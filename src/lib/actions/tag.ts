@@ -11,12 +11,16 @@ export const tagExists = action(tagService.tagExists.bind(tagService));
 /**
  * 获取服务器下所有标签
  */
-export const getTagsByServerId = action(tagService.getTagsByServerId.bind(tagService));
+export const getTagsByServerId = action(
+	tagService.getTagsByServerId.bind(tagService),
+);
 
 /**
  * 根据标签ID获取标签详情和关联项目
  */
-export const getTagWithItems = action(tagService.getTagWithItems.bind(tagService));
+export const getTagWithItems = action(
+	tagService.getTagWithItems.bind(tagService),
+);
 
 /**
  * 创建新标签
@@ -31,7 +35,9 @@ export const addTagToItem = action(tagService.addTagToItem.bind(tagService));
 /**
  * 从项目移除标签
  */
-export const removeTagFromItem = action(tagService.removeTagFromItem.bind(tagService));
+export const removeTagFromItem = action(
+	tagService.removeTagFromItem.bind(tagService),
+);
 
 /**
  * 更新标签
@@ -53,12 +59,16 @@ export const getAllTags = action(tagService.getAllTags.bind(tagService));
 /**
  * 批量设置标签分组
  */
-export const batchSetTagGroup = action(tagService.batchSetTagGroup.bind(tagService));
+export const batchSetTagGroup = action(
+	tagService.batchSetTagGroup.bind(tagService),
+);
 
 /**
  * 批量删除标签
  */
-export const batchDeleteTags = action(tagService.batchDeleteTags.bind(tagService));
+export const batchDeleteTags = action(
+	tagService.batchDeleteTags.bind(tagService),
+);
 
 /**
  * 合并标签

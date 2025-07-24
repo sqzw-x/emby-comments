@@ -49,7 +49,7 @@ jobs:
         run: pnpm prisma:generate
 
       - name: Run biome
-        run: pnpm ci
+        run: pnpm run ci
 
       - name: Build application
         run: pnpm build

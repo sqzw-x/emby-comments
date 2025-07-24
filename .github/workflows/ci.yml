@@ -48,8 +48,8 @@ jobs:
       - name: Generate Prisma client
         run: pnpm prisma:generate
 
-      - name: Run ESLint
-        run: pnpm lint
+      - name: Run biome
+        run: pnpm ci
 
       - name: Build application
         run: pnpm build

@@ -5,6 +5,7 @@
 		"dev": "next dev --turbopack",
 		"build": "next build",
 		"start": "next start",
+		"ci": "biome ci",
 		"lint": "biome check --fix",
 		"check": "biome check --fix",
 		"test": "jest",

@@ -4,7 +4,6 @@ import { IconButton, Tooltip } from "@mui/material";
 import { Monitor, Moon, Sun } from "lucide-react";
 
 import { useTheme } from "@/lib/context/theme-context";
-import type { ThemeMode } from "@/lib/theme";
 
 export default function ThemeSwitcher() {
 	const { mode, setMode } = useTheme();
@@ -20,7 +19,7 @@ export default function ThemeSwitcher() {
 			(option) => option.mode === mode,
 		);
 		const nextIndex = (currentIndex + 1) % themeOptions.length;
-		setMode(themeOptions[nextIndex].mode as ThemeMode);
+		setMode(themeOptions[nextIndex].mode);
 	};
 
 	const getCurrentTheme = () => {
@@ -35,10 +34,7 @@ export default function ThemeSwitcher() {
 		<Tooltip title={`当前: ${currentTheme.label}，点击切换`}>
 			<IconButton
 				onClick={handleToggle}
-				sx={{
-					color: "text.secondary",
-					"&:hover": { color: "text.primary" },
-				}}
+				sx={{ color: "text.secondary", "&:hover": { color: "text.primary" } }}
 			>
 				{currentTheme.icon}
 			</IconButton>

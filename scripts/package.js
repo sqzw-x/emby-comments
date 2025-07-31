@@ -28,6 +28,12 @@ function makeExecutable(filePath) {
  * 主打包函数
  */
 async function packageApp() {
+	// 清理并创建 build 目录
+	const buildDir = path.join(process.cwd(), "build");
+	removeDir(buildDir);
+	fs.mkdirSync(buildDir, { recursive: true });
+	console.log("🗑️ Cleaned build directory");
+
 	console.log("🏗️  Building Next.js application...");
 	try {
 		execSync("pnpm build", { stdio: "inherit" });
@@ -38,12 +44,6 @@ async function packageApp() {
 	}
 
 	console.log("📦 Preparing distribution files...");
-
-	// 清理并创建 build 目录
-	const buildDir = path.join(process.cwd(), "build");
-	removeDir(buildDir);
-	fs.mkdirSync(buildDir, { recursive: true });
-	console.log("🗑️ Cleaned build directory");
 
 	// 复制 standalone 构建文件
 	console.log("📋 Copying standalone build...");

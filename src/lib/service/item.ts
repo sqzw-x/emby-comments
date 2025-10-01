@@ -26,14 +26,14 @@ export type ItemSyncResult = {
 
 export type ItemMapOperation =
 	| {
-		type: "map";
-		embyItemId: number;
-		localItemId: number;
-	}
+			type: "map";
+			embyItemId: number;
+			localItemId: number;
+	  }
 	| {
-		type: "unmap" | "create" | "refresh";
-		embyItemId: number;
-	};
+			type: "unmap" | "create" | "refresh";
+			embyItemId: number;
+	  };
 
 export type SortField =
 	| "title"

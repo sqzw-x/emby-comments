@@ -49,7 +49,7 @@ export function parseSearchParams<
 		for (const field of config.numberFields) {
 			const value = result[field];
 			if (typeof value === "string") {
-				const parsed = parseInt(value);
+				const parsed = parseInt(value, 10);
 				if (!Number.isNaN(parsed)) {
 					(result[field] as unknown) = parsed;
 				}

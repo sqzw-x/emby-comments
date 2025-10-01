@@ -198,7 +198,7 @@ export function ItemsFilter({
 									type="number"
 									value={localYearFrom}
 									onChange={(e) =>
-										setLocalYearFrom(parseInt(e.target.value) || null)
+										setLocalYearFrom(parseInt(e.target.value, 10) || null)
 									}
 									onKeyDown={handleYearFromKeyDown}
 									onBlur={() => onFilterChange({ yearFrom: localYearFrom })}
@@ -214,8 +214,8 @@ export function ItemsFilter({
 									type="number"
 									value={localYearTo}
 									onChange={(e) =>
-										parseInt(e.target.value) &&
-										setLocalYearTo(parseInt(e.target.value))
+										parseInt(e.target.value, 10) &&
+										setLocalYearTo(parseInt(e.target.value, 10))
 									}
 									onKeyDown={handleYearToKeyDown}
 									onBlur={() => onFilterChange({ yearTo: localYearTo })}

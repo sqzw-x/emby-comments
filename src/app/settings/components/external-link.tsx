@@ -425,7 +425,7 @@ export default function ExternalLinkSetting({
 							onChange={(e) =>
 								setFormData({
 									...formData,
-									order: parseInt(e.target.value) || 0,
+									order: parseInt(e.target.value, 10) || 0,
 								})
 							}
 							helperText="数字越小越靠前显示"

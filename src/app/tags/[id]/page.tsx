@@ -15,7 +15,7 @@ export interface TagDetailProps {
 export default async function TagDetailPage({ params }: TagDetailProps) {
 	// 获取标签ID
 	const { id } = await params;
-	const id_ = parseInt(id);
+	const id_ = parseInt(id, 10);
 	if (Number.isNaN(id_)) {
 		notFound();
 	}

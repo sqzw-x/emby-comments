@@ -15,7 +15,7 @@ export interface ItemProps {
 export default async function ItemPage({ params }: ItemProps) {
 	// 获取项目ID
 	const { id } = await params;
-	const itemId = parseInt(id);
+	const itemId = parseInt(id, 10);
 
 	// 验证 ID 是否为有效数字
 	if (Number.isNaN(itemId)) {

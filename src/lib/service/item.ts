@@ -26,14 +26,14 @@ export type ItemSyncResult = {
 
 export type ItemMapOperation =
 	| {
-			type: "map";
-			embyItemId: number;
-			localItemId: number;
-	  }
+		type: "map";
+		embyItemId: number;
+		localItemId: number;
+	}
 	| {
-			type: "unmap" | "create" | "refresh";
-			embyItemId: number;
-	  };
+		type: "unmap" | "create" | "refresh";
+		embyItemId: number;
+	};
 
 export type SortField =
 	| "title"
@@ -401,6 +401,10 @@ export class ItemService {
 
 	/**
 	 * 获取未映射的本地项目
+	 *
+	 * @param serverId 服务器ID
+	 * @param searchTerm 可选的搜索关键词, 过滤标题或原始标题包含该关键词的项目
+	 * @returns 未映射的本地项目列表, 按标题升序排序, 最多返回50个结果
 	 */
 	async getUnmappedLocalItems(serverId: number, searchTerm?: string) {
 		const whereCondition: Prisma.LocalItemWhereInput = {
@@ -408,11 +412,20 @@ export class ItemService {
 		};
 
 		// 如果有搜索词，添加搜索条件
-		if (searchTerm) {
-			whereCondition.OR = [
-				{ title: { contains: searchTerm } },
-				{ originalTitle: { contains: searchTerm } },
-			];
+		const normalizedSearch = searchTerm?.trim();
+		if (normalizedSearch) {
+			const variations = new Set<string>();
+			variations.add(normalizedSearch);
+			variations.add(normalizedSearch.toLowerCase());
+			variations.add(normalizedSearch.toUpperCase());
+			const titleCase = normalizedSearch.replace(/\b\w/g, (char) =>
+				char.toUpperCase(),
+			);
+			variations.add(titleCase);
+			whereCondition.OR = Array.from(variations).flatMap((term) => [
+				{ title: { contains: term } },
+				{ originalTitle: { contains: term } },
+			]);
 		}
 
 		return await dbClient.localItem.findMany({

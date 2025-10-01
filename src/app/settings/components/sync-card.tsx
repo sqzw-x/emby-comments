@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import type { LocalItem } from "@prisma/client";
 import * as Lucide from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDebounceValue } from "usehooks-ts";
 
 import { getUnmappedLocalItems } from "@/lib/actions/server";
@@ -178,18 +178,25 @@ export function ItemCard({
 	onSelectMatch,
 }: ItemCardProps) {
 	const hasPendingAction = !!item.pendingAction; // 操作队列
-	const isCreate = item.pendingAction?.type === "create"; // 操作队列-新建
-	const isMatched =
-		item.selected || (item.matches.length > 0 && !hasPendingAction);
-	const selectedMatch = item.selected ?? item.matches.at(0);
+	const isCreatePending = item.pendingAction?.type === "create"; // 操作队列-新建
+	const selectedLocalItemId = item.selected?.id;
+	const isMapped =
+		item.status === "matched" || selectedLocalItemId !== undefined;
+	const showMappedState = isMapped && !hasPendingAction;
+	const primaryMatch = item.selected ?? item.matches.at(0);
+	const primaryScore = selectedLocalItemId
+		? item.matches.find((match) => match.id === selectedLocalItemId)?.score
+		: item.matches.at(0)?.score;
 
 	// 计算卡片样式
 	const getCardStyles = () => {
-		if (isMatched && !hasPendingAction) {
+		if (showMappedState) {
 			return {
 				borderColor: "success.main",
-				bgcolor: isCreate ? "primary.50" : "success.50",
-				"&:hover": { bgcolor: isCreate ? "primary.100" : "success.100" },
+				bgcolor: isCreatePending ? "primary.50" : "success.50",
+				"&:hover": {
+					bgcolor: isCreatePending ? "primary.100" : "success.100",
+				},
 			};
 		}
 		return {
@@ -202,8 +209,8 @@ export function ItemCard({
 		<Card variant="outlined" sx={getCardStyles()}>
 			<CardContent
 				sx={{
-					p: isMatched && !hasPendingAction ? 3 : 2,
-					"&:last-child": { pb: isMatched && !hasPendingAction ? 3 : 2 },
+					p: showMappedState ? 3 : 2,
+					"&:last-child": { pb: showMappedState ? 3 : 2 },
 				}}
 			>
 				{/* 主要内容区域 */}
@@ -217,7 +224,7 @@ export function ItemCard({
 					<Box
 						display="flex"
 						alignItems="flex-start"
-						gap={isMatched && !hasPendingAction ? 2 : 1.5}
+						gap={showMappedState ? 2 : 1.5}
 						flex={1}
 						minWidth={0}
 					>
@@ -226,7 +233,7 @@ export function ItemCard({
 							onChange={onToggle}
 							size="small"
 							sx={{
-								mt: isMatched && !hasPendingAction ? 0.5 : 0.25,
+								mt: showMappedState ? 0.5 : 0.25,
 								flexShrink: 0,
 							}}
 						/>
@@ -261,9 +268,7 @@ export function ItemCard({
 										)}
 										size="small"
 										variant="outlined"
-										color={
-											isMatched && !hasPendingAction ? "default" : undefined
-										}
+										color={showMappedState ? "default" : undefined}
 										sx={{ fontSize: "0.75rem", height: 24, flexShrink: 0 }}
 									/>
 								)}
@@ -289,7 +294,7 @@ export function ItemCard({
 									/>
 								)}
 
-								{isCreate && !hasPendingAction && (
+								{isCreatePending && !hasPendingAction && (
 									<Chip
 										label="新建"
 										size="small"
@@ -298,7 +303,7 @@ export function ItemCard({
 									/>
 								)}
 
-								{isMatched && !hasPendingAction && !isCreate && (
+								{showMappedState && !isCreatePending && (
 									<Chip
 										label="匹配"
 										size="small"
@@ -314,7 +319,7 @@ export function ItemCard({
 										variant="body2"
 										color="text.secondary"
 										sx={{
-											mb: isMatched && !hasPendingAction ? 1 : 0.5,
+											mb: showMappedState ? 1 : 0.5,
 											overflow: "hidden",
 											textOverflow: "ellipsis",
 											whiteSpace: "nowrap",
@@ -328,11 +333,7 @@ export function ItemCard({
 							{item.item.overview && (
 								<Typography
 									variant="body2"
-									color={
-										isMatched && !hasPendingAction
-											? "text.primary"
-											: "text.secondary"
-									}
+									color={showMappedState ? "text.primary" : "text.secondary"}
 									sx={{
 										display: "-webkit-box",
 										WebkitLineClamp: 2,
@@ -346,8 +347,8 @@ export function ItemCard({
 							)}
 
 							{/* 显示已选择的匹配项目 */}
-							{!isCreate && selectedMatch && isMatched && !hasPendingAction && (
-								<MatchItemDisplay item={selectedMatch} />
+							{!isCreatePending && primaryMatch && showMappedState && (
+								<MatchItemDisplay item={primaryMatch} score={primaryScore} />
 							)}
 						</Box>
 					</Box>
@@ -380,7 +381,7 @@ export function ItemCard({
 				{/* 匹配建议区域 */}
 				{onSelectMatch &&
 					!hasPendingAction &&
-					!isMatched &&
+					!isMapped &&
 					item.matches.length > 0 && (
 						<Box mt={2}>
 							<Typography
@@ -451,7 +452,8 @@ export function CustomMapDialog({
 	serverId,
 	onMap,
 }: CustomMapDialogProps) {
-	const [searchTerm, setSearchTerm] = useDebounceValue("", 300);
+	const [inputValue, setInputValue] = useState("");
+	const [debouncedSearchTerm] = useDebounceValue(inputValue, 300);
 	const [availableItems, setAvailableItems] = useState<LocalItem[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [selectedLocalItem, setSelectedLocalItem] = useState<LocalItem | null>(
@@ -460,26 +462,51 @@ export function CustomMapDialog({
 
 	// 加载可用的本地项目
 	const loadAvailableItems = useCallback(
-		async (search = "") => {
-			setLoading(true);
+		async (search = "", options?: { isCancelled?: () => boolean }) => {
 			const result = await getUnmappedLocalItems(serverId, search);
+			if (options?.isCancelled?.()) return;
 			if (result.success) {
 				setAvailableItems(result.value);
 			} else {
 				console.error("加载本地项目失败:", result.message);
 				setAvailableItems([]);
 			}
-			setLoading(false);
 		},
 		[serverId],
 	);
 
-	// 初始加载可用项目
-	useState(() => {
-		(async () => {
-			await loadAvailableItems();
-		})();
-	});
+	useEffect(() => {
+		let cancelled = false;
+		const checkCancelled = () => cancelled;
+		setLoading(true);
+		loadAvailableItems(debouncedSearchTerm, { isCancelled: checkCancelled })
+			.catch((error) => {
+				if (!cancelled) {
+					console.error("加载本地项目失败:", error);
+					setAvailableItems([]);
+				}
+			})
+			.finally(() => {
+				if (!cancelled) {
+					setLoading(false);
+				}
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [debouncedSearchTerm, loadAvailableItems]);
+
+	const handleReload = useCallback(() => {
+		setLoading(true);
+		loadAvailableItems(debouncedSearchTerm)
+			.catch((error) => {
+				console.error("加载本地项目失败:", error);
+				setAvailableItems([]);
+			})
+			.finally(() => {
+				setLoading(false);
+			});
+	}, [debouncedSearchTerm, loadAvailableItems]);
 
 	const handleMap = () => {
 		if (selectedLocalItem) {
@@ -488,11 +515,15 @@ export function CustomMapDialog({
 		}
 	};
 
-	const filteredItems = availableItems.filter(
-		(item) =>
-			item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-			item.originalTitle?.toLowerCase().includes(searchTerm.toLowerCase()),
-	);
+	const filteredItems = useMemo(() => {
+		if (!inputValue) return availableItems;
+		const normalized = inputValue.toLowerCase();
+		return availableItems.filter(
+			(candidate) =>
+				candidate.title.toLowerCase().includes(normalized) ||
+				candidate.originalTitle?.toLowerCase().includes(normalized),
+		);
+	}, [availableItems, inputValue]);
 
 	return (
 		<Box
@@ -549,8 +580,8 @@ export function CustomMapDialog({
 					{/* 搜索框 */}
 					<TextField
 						placeholder="搜索本地项目..."
-						value={searchTerm}
-						onChange={(e) => setSearchTerm(e.target.value)}
+						value={inputValue}
+						onChange={(event) => setInputValue(event.target.value)}
 						size="small"
 						fullWidth
 						sx={{ mb: 2 }}
@@ -605,96 +636,110 @@ export function CustomMapDialog({
 								>
 									暂无可用的本地项目
 								</Typography>
-								<Button
-									variant="outlined"
-									size="small"
-									onClick={() => loadAvailableItems()}
-								>
+								<Button variant="outlined" size="small" onClick={handleReload}>
 									重新加载
 								</Button>
 							</Box>
 						) : (
-							filteredItems.map((item) => (
-								<Card
-									key={item.id}
-									variant="outlined"
-									sx={{
-										cursor: "pointer",
-										transition: "all 0.2s",
-										borderColor:
-											selectedLocalItem?.id === item.id
-												? "primary.main"
-												: "divider",
-										backgroundColor:
-											selectedLocalItem?.id === item.id
-												? "action.selected"
-												: "background.paper",
-										"&:hover": {
+							filteredItems.map((candidate) => {
+								const match = item.matches.find(
+									(matchItem) => matchItem.id === candidate.id,
+								);
+								return (
+									<Card
+										key={candidate.id}
+										variant="outlined"
+										sx={{
+											cursor: "pointer",
+											transition: "all 0.2s",
+											borderColor:
+												selectedLocalItem?.id === candidate.id
+													? "primary.main"
+													: "divider",
 											backgroundColor:
-												selectedLocalItem?.id === item.id
+												selectedLocalItem?.id === candidate.id
 													? "action.selected"
-													: "action.hover",
-										},
-									}}
-									onClick={() => setSelectedLocalItem(item)}
-								>
-									<CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-										<Box
-											display="flex"
-											alignItems="center"
-											justifyContent="space-between"
-										>
-											<Box flex={1} minWidth={0}>
-												<Typography
-													variant="subtitle2"
-													sx={{
-														fontWeight: 500,
-														overflow: "hidden",
-														textOverflow: "ellipsis",
-														whiteSpace: "nowrap",
-													}}
-												>
-													{item.title}
-												</Typography>
-												{item.originalTitle &&
-													item.originalTitle !== item.title && (
-														<Typography
-															variant="caption"
-															color="text.secondary"
-															sx={{
-																display: "block",
-																overflow: "hidden",
-																textOverflow: "ellipsis",
-																whiteSpace: "nowrap",
-															}}
-														>
-															{item.originalTitle}
-														</Typography>
-													)}
-												<Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-													{item.premiereDate && (
+													: "background.paper",
+											"&:hover": {
+												backgroundColor:
+													selectedLocalItem?.id === candidate.id
+														? "action.selected"
+														: "action.hover",
+											},
+										}}
+										onClick={() => setSelectedLocalItem(candidate)}
+									>
+										<CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+											<Box
+												display="flex"
+												alignItems="center"
+												justifyContent="space-between"
+											>
+												<Box flex={1} minWidth={0}>
+													<Typography
+														variant="subtitle2"
+														sx={{
+															fontWeight: 500,
+															overflow: "hidden",
+															textOverflow: "ellipsis",
+															whiteSpace: "nowrap",
+														}}
+													>
+														{candidate.title}
+													</Typography>
+													{candidate.originalTitle &&
+														candidate.originalTitle !== candidate.title && (
+															<Typography
+																variant="caption"
+																color="text.secondary"
+																sx={{
+																	display: "block",
+																	overflow: "hidden",
+																	textOverflow: "ellipsis",
+																	whiteSpace: "nowrap",
+																}}
+															>
+																{candidate.originalTitle}
+															</Typography>
+														)}
+													<Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+														{candidate.premiereDate && (
+															<Chip
+																label={candidate.premiereDate.getFullYear()}
+																size="small"
+																variant="outlined"
+																sx={{ fontSize: "0.75rem" }}
+															/>
+														)}
 														<Chip
-															label={item.premiereDate.getFullYear()}
+															label={candidate.type}
 															size="small"
 															variant="outlined"
 															sx={{ fontSize: "0.75rem" }}
 														/>
+													</Stack>
+												</Box>
+												<Stack direction="row" spacing={1} alignItems="center">
+													{match?.score !== undefined && (
+														<Chip
+															label={`${Math.round(match.score * 100)}%`}
+															size="small"
+															color="primary"
+															sx={{ fontSize: "0.75rem" }}
+														/>
 													)}
-													<Chip
-														label={item.type}
-														size="small"
-														variant="outlined"
-														sx={{ fontSize: "0.75rem" }}
-													/>
+													{selectedLocalItem?.id === candidate.id && (
+														<Lucide.Check
+															size={20}
+															style={{ color: "primary" }}
+														/>
+													)}
 												</Stack>
 											</Box>
-											{selectedLocalItem?.id === item.id && (
-												<Lucide.Check size={20} style={{ color: "primary" }} />
-											)}
-										</Box>
-									</CardContent>
-								</Card>
-							))
+										</CardContent>
+									</Card>
+								);
+							})
 						)}
 					</Box>
 				</CardContent>

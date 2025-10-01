@@ -794,18 +794,11 @@ export default function ItemClient({
 									color="text.secondary"
 									sx={{ whiteSpace: "pre-wrap" }}
 								>
-									{
-										// 支持 <br> 换行, 但避免 HTML 注入
-										item.overview
-											.split(/<br\s*\/?>/gi)
-											.map((line, index, array) => (
-												// biome-ignore lint/suspicious/noArrayIndexKey: 临时列表不变
-												<React.Fragment key={index}>
-													{line}
-													{index < array.length - 1 && <br />}
-												</React.Fragment>
-											))
-									}
+									{(() => {
+										const element = document.createElement("textarea");
+										element.innerHTML = item.overview;
+										return element.value;
+									})()}
 								</Typography>
 							</Box>
 						)}
